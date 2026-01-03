@@ -1,6 +1,6 @@
 """Database persistence backends."""
 
-from .base import BaseDatabaseBackend, DEFAULT_POSTGRES_DSN
+from .base import DEFAULT_POSTGRES_DSN, BaseDatabaseBackend
 from .postgresql import PostgreSQLBackend
 
 __all__ = [

@@ -9,7 +9,8 @@ Exposes 10 tools via 3-meta-tool pattern:
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Coroutine
+from collections.abc import Callable, Coroutine
+from typing import Any
 
 from pydantic import BaseModel, Field
 

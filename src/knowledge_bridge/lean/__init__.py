@@ -1,7 +1,7 @@
 """Lean MCP interface with 3 meta-tools."""
 
-from .interface import KnowledgeBridgeLeanInterface
+from .interface import LeanMCPInterface
 
 __all__ = [
-    "KnowledgeBridgeLeanInterface",
+    "LeanMCPInterface",
 ]

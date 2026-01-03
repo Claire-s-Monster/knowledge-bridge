@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -65,7 +65,7 @@ class SessionIntelligenceClient:
                 f"{self.base_url}/api/sessions/{session_id}"
             )
             if response.status_code == 200:
-                return response.json()
+                return cast(dict[str, Any], response.json())
             elif response.status_code == 404:
                 return None
             else:
@@ -95,7 +95,8 @@ class SessionIntelligenceClient:
                 f"{self.base_url}/api/sessions/{session_id}/learnings"
             )
             if response.status_code == 200:
-                return response.json().get("learnings", [])
+                data = cast(dict[str, Any], response.json())
+                return cast(list[dict[str, Any]], data.get("learnings", []))
             else:
                 logger.warning(
                     f"Failed to get learnings for {session_id}: {response.status_code}"
@@ -123,7 +124,8 @@ class SessionIntelligenceClient:
                 f"{self.base_url}/api/sessions/{session_id}/decisions"
             )
             if response.status_code == 200:
-                return response.json().get("decisions", [])
+                data = cast(dict[str, Any], response.json())
+                return cast(list[dict[str, Any]], data.get("decisions", []))
             else:
                 logger.warning(
                     f"Failed to get decisions for {session_id}: {response.status_code}"
@@ -151,7 +153,8 @@ class SessionIntelligenceClient:
                 f"{self.base_url}/api/sessions/{session_id}/notes"
             )
             if response.status_code == 200:
-                return response.json().get("notes", [])
+                data = cast(dict[str, Any], response.json())
+                return cast(list[dict[str, Any]], data.get("notes", []))
             else:
                 logger.warning(
                     f"Failed to get notes for {session_id}: {response.status_code}"
@@ -205,7 +208,7 @@ class SessionIntelligenceClient:
                 f"{self.base_url}/api/learnings/{learning_id}"
             )
             if response.status_code == 200:
-                return response.json()
+                return cast(dict[str, Any], response.json())
             elif response.status_code == 404:
                 return None
             else:

@@ -22,7 +22,7 @@ from typing import Any
 try:
     import asyncpg
 except ImportError:
-    asyncpg = None  # type: ignore
+    asyncpg = None  # type: ignore[assignment]
 
 from .base import DEFAULT_POSTGRES_DSN, BaseDatabaseBackend
 
@@ -203,6 +203,7 @@ class PostgreSQLBackend(BaseDatabaseBackend):
     async def save_staged_entry(self, entry_data: dict[str, Any]) -> None:
         """Save or update a staged entry."""
         self._ensure_connected()
+        assert self._pool is not None  # Type narrowing after _ensure_connected
 
         async with self._pool.acquire() as conn:
             await conn.execute(
@@ -235,6 +236,7 @@ class PostgreSQLBackend(BaseDatabaseBackend):
     async def get_staged_entry(self, entry_id: str) -> dict[str, Any] | None:
         """Get a staged entry by ID."""
         self._ensure_connected()
+        assert self._pool is not None
 
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
@@ -254,6 +256,7 @@ class PostgreSQLBackend(BaseDatabaseBackend):
     ) -> list[dict[str, Any]]:
         """Query staging queue with optional status filter."""
         self._ensure_connected()
+        assert self._pool is not None
 
         query = "SELECT * FROM staging_queue WHERE 1=1"
         params: list[Any] = []
@@ -286,6 +289,7 @@ class PostgreSQLBackend(BaseDatabaseBackend):
     ) -> bool:
         """Update status of a staged entry."""
         self._ensure_connected()
+        assert self._pool is not None
 
         async with self._pool.acquire() as conn:
             result = await conn.execute(
@@ -307,6 +311,7 @@ class PostgreSQLBackend(BaseDatabaseBackend):
     async def save_webhook(self, webhook_data: dict[str, Any]) -> None:
         """Save or update a webhook registration."""
         self._ensure_connected()
+        assert self._pool is not None
 
         async with self._pool.acquire() as conn:
             await conn.execute(
@@ -333,6 +338,7 @@ class PostgreSQLBackend(BaseDatabaseBackend):
     async def get_webhook(self, webhook_id: str) -> dict[str, Any] | None:
         """Get a webhook by ID."""
         self._ensure_connected()
+        assert self._pool is not None
 
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
@@ -352,6 +358,7 @@ class PostgreSQLBackend(BaseDatabaseBackend):
     ) -> list[dict[str, Any]]:
         """Query webhooks with optional filters."""
         self._ensure_connected()
+        assert self._pool is not None
 
         query = "SELECT * FROM webhooks WHERE 1=1"
         params: list[Any] = []
@@ -382,6 +389,7 @@ class PostgreSQLBackend(BaseDatabaseBackend):
     async def delete_webhook(self, webhook_id: str) -> bool:
         """Delete a webhook by ID."""
         self._ensure_connected()
+        assert self._pool is not None
 
         async with self._pool.acquire() as conn:
             result = await conn.execute(
@@ -398,6 +406,7 @@ class PostgreSQLBackend(BaseDatabaseBackend):
     ) -> bool:
         """Update webhook status fields."""
         self._ensure_connected()
+        assert self._pool is not None
 
         updates = []
         params: list[Any] = []
@@ -433,6 +442,7 @@ class PostgreSQLBackend(BaseDatabaseBackend):
     async def save_event(self, event_data: dict[str, Any]) -> int:
         """Save an event to the log. Returns event ID."""
         self._ensure_connected()
+        assert self._pool is not None
 
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
@@ -446,7 +456,7 @@ class PostgreSQLBackend(BaseDatabaseBackend):
                 event_data.get("timestamp", self._get_timestamp()),
                 json.dumps(event_data.get("delivered_to", [])),
             )
-            return row["id"]
+            return int(row["id"])
 
     async def query_events(
         self,
@@ -455,6 +465,7 @@ class PostgreSQLBackend(BaseDatabaseBackend):
     ) -> list[dict[str, Any]]:
         """Query event log with optional type filter."""
         self._ensure_connected()
+        assert self._pool is not None
 
         query = "SELECT * FROM event_log WHERE 1=1"
         params: list[Any] = []
@@ -485,6 +496,7 @@ class PostgreSQLBackend(BaseDatabaseBackend):
     async def save_feedback(self, feedback_data: dict[str, Any]) -> None:
         """Save feedback for a knowledge entry."""
         self._ensure_connected()
+        assert self._pool is not None
 
         async with self._pool.acquire() as conn:
             await conn.execute(
@@ -511,6 +523,7 @@ class PostgreSQLBackend(BaseDatabaseBackend):
     ) -> list[dict[str, Any]]:
         """Query feedback with optional filters."""
         self._ensure_connected()
+        assert self._pool is not None
 
         query = "SELECT * FROM feedback WHERE 1=1"
         params: list[Any] = []
@@ -538,6 +551,7 @@ class PostgreSQLBackend(BaseDatabaseBackend):
     async def save_search(self, search_data: dict[str, Any]) -> int:
         """Save a search to the log. Returns search ID."""
         self._ensure_connected()
+        assert self._pool is not None
 
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
@@ -554,7 +568,7 @@ class PostgreSQLBackend(BaseDatabaseBackend):
                 search_data.get("top_result_id"),
                 search_data.get("searched_at", self._get_timestamp()),
             )
-            return row["id"]
+            return int(row["id"])
 
     async def query_searches(
         self,
@@ -563,6 +577,7 @@ class PostgreSQLBackend(BaseDatabaseBackend):
     ) -> list[dict[str, Any]]:
         """Query search log with optional session filter."""
         self._ensure_connected()
+        assert self._pool is not None
 
         query = "SELECT * FROM search_log WHERE 1=1"
         params: list[Any] = []
@@ -591,6 +606,7 @@ class PostgreSQLBackend(BaseDatabaseBackend):
     async def get_statistics(self) -> dict[str, Any]:
         """Get database statistics for monitoring."""
         self._ensure_connected()
+        assert self._pool is not None
 
         stats: dict[str, Any] = {
             "backend": "postgresql",
@@ -602,20 +618,22 @@ class PostgreSQLBackend(BaseDatabaseBackend):
             tables = ["staging_queue", "webhooks", "event_log", "feedback", "search_log"]
             for table in tables:
                 row = await conn.fetchrow(f"SELECT COUNT(*) as count FROM {table}")
-                stats[f"{table}_count"] = row["count"] if row else 0
+                stats[f"{table}_count"] = int(row["count"]) if row else 0
 
             # Get staging queue by status
             rows = await conn.fetch(
                 "SELECT status, COUNT(*) as count FROM staging_queue GROUP BY status"
             )
-            stats["staging_by_status"] = {row["status"]: row["count"] for row in rows}
+            stats["staging_by_status"] = {
+                str(row["status"]): int(row["count"]) for row in rows
+            }
 
             # Get database size
             row = await conn.fetchrow(
                 "SELECT pg_database_size(current_database()) as size"
             )
             if row:
-                stats["size_bytes"] = row["size"]
+                stats["size_bytes"] = int(row["size"])
 
             # Get pool stats
             stats["pool_size"] = self._pool.get_size()

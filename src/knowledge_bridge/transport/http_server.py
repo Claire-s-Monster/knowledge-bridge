@@ -11,6 +11,7 @@ Exposes the lean MCP interface via HTTP endpoints:
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -77,7 +78,7 @@ def create_app(
     state: dict[str, Any] = {}
 
     @asynccontextmanager
-    async def lifespan(app: FastAPI):
+    async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         """Application lifespan manager."""
         # Startup
         logger.info("Starting knowledge-bridge server...")
@@ -147,7 +148,7 @@ def create_app(
     # ===== Health Endpoints =====
 
     @app.get("/health")
-    async def health():
+    async def health() -> dict[str, Any]:
         """Health check endpoint."""
         service = state.get("service")
         if service:
@@ -155,7 +156,7 @@ def create_app(
         return {"status": "starting"}
 
     @app.get("/api/statistics")
-    async def statistics():
+    async def statistics() -> dict[str, Any]:
         """Get server statistics."""
         database = state.get("database")
         if database:
@@ -165,7 +166,7 @@ def create_app(
     # ===== MCP Endpoints =====
 
     @app.post("/mcp/discover_tools")
-    async def discover_tools(request: DiscoverToolsRequest):
+    async def discover_tools(request: DiscoverToolsRequest) -> dict[str, Any]:
         """Discover available tools."""
         interface = state.get("interface")
         if not interface:
@@ -173,7 +174,7 @@ def create_app(
         return await interface.discover_tools(request.pattern)
 
     @app.post("/mcp/get_tool_spec")
-    async def get_tool_spec(request: GetToolSpecRequest):
+    async def get_tool_spec(request: GetToolSpecRequest) -> dict[str, Any]:
         """Get tool specification."""
         interface = state.get("interface")
         if not interface:
@@ -181,7 +182,7 @@ def create_app(
         return await interface.get_tool_spec(request.tool_name)
 
     @app.post("/mcp/execute_tool")
-    async def execute_tool(request: ExecuteToolRequest):
+    async def execute_tool(request: ExecuteToolRequest) -> dict[str, Any]:
         """Execute a tool."""
         interface = state.get("interface")
         if not interface:
@@ -191,7 +192,7 @@ def create_app(
     # ===== Convenience REST Endpoints =====
 
     @app.get("/api/staging-queue")
-    async def get_staging_queue(status: str = "pending", limit: int = 50):
+    async def get_staging_queue(status: str = "pending", limit: int = 50) -> dict[str, Any]:
         """Get staging queue entries (REST convenience)."""
         interface = state.get("interface")
         if not interface:
@@ -203,7 +204,7 @@ def create_app(
         return result
 
     @app.get("/api/webhooks")
-    async def list_webhooks():
+    async def list_webhooks() -> dict[str, Any]:
         """List webhooks (REST convenience)."""
         interface = state.get("interface")
         if not interface:
@@ -216,7 +217,7 @@ def create_app(
         session_id: str,
         query: str,
         limit: int = 5,
-    ):
+    ) -> dict[str, Any]:
         """Search knowledge (REST convenience)."""
         interface = state.get("interface")
         if not interface:

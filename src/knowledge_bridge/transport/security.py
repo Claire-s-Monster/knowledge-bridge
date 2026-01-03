@@ -6,7 +6,8 @@ Restricts access to localhost only for internal MCP server.
 from __future__ import annotations
 
 import logging
-from typing import Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -31,7 +32,7 @@ class LocalhostOnlyMiddleware(BaseHTTPMiddleware):
 
     def __init__(
         self,
-        app: Callable,
+        app: Callable[..., Any],
         allow_health_check: bool = True,
     ) -> None:
         """Initialize middleware.
@@ -46,7 +47,7 @@ class LocalhostOnlyMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self,
         request: Request,
-        call_next: Callable[[Request], Response],
+        call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
         """Process request and check if from localhost.
 

@@ -1,10 +1,9 @@
 """HTTP transport layer."""
 
-from .http_server import HTTPKnowledgeBridgeServer
-from .security import LocalhostOnlyMiddleware, SecurityConfig
+from .http_server import create_app
+from .security import LocalhostOnlyMiddleware
 
 __all__ = [
-    "HTTPKnowledgeBridgeServer",
+    "create_app",
     "LocalhostOnlyMiddleware",
-    "SecurityConfig",
 ]
