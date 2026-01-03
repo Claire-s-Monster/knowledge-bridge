@@ -1,0 +1,101 @@
+[project]
+name = "knowledge-bridge"
+version = "0.1.0"
+description = "Orchestration layer between session-intelligence and UCKN for cross-session knowledge sharing"
+authors = [
+    {name = "Claude Code Agent Ecosystem Team", email = "claude-code@anthropic.com"},
+]
+dependencies = []
+requires-python = ">=3.11"
+readme = "README.md"
+license = {text = "MIT"}
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.5.0",
+    "pre-commit>=3.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.pixi.project]
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[tool.pixi.dependencies]
+python = ">=3.11"
+fastmcp = ">=1.0.0"
+pydantic = ">=2.0.0"
+# HTTP transport dependencies
+fastapi = ">=0.109.0"
+uvicorn = ">=0.27.0"
+# PostgreSQL support
+asyncpg = ">=0.29.0"
+
+[tool.pixi.pypi-dependencies]
+knowledge-bridge = { path = ".", editable = true }
+typing-extensions = ">=4.0.0"
+python-dateutil = ">=2.8.0"
+# HTTP transport dependencies
+sse-starlette = ">=2.0.0"
+# Inter-server HTTP client
+httpx = ">=0.25.0"
+
+[tool.pixi.tasks]
+# HTTP transport server
+http-server = { cmd = "python src/http_lean_server.py", env = { PYTHONPATH = "src" } }
+http-server-dev = { cmd = "python src/http_lean_server.py --log-level DEBUG", env = { PYTHONPATH = "src" } }
+# Database initialization
+db-init = { cmd = "python -c 'from knowledge_bridge.persistence.postgresql import PostgreSQLBackend; import asyncio; asyncio.run(PostgreSQLBackend().initialize())'", env = { PYTHONPATH = "src" } }
+# Quality tasks
+test = "pytest tests/ -v --ignore=.pixi"
+lint = "ruff check src/ --fix"
+format = "black src/ ."
+type-check = "mypy src/"
+quality = { depends-on = ["lint", "type-check"] }
+check-all = { depends-on = ["test", "quality"] }
+
+[tool.pixi.environments]
+default = { solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+
+[tool.black]
+target-version = ["py311"]
+line-length = 100
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
