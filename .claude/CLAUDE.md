@@ -4,6 +4,14 @@
 
 **Read the PRD first**: `../PRD.md`
 
+```bash
+# Run tests
+PYTHONPATH=src pixi run -e dev test
+
+# Start server (requires PostgreSQL)
+pixi run http-server
+```
+
 ## Project Context
 
 | Item | Value |
@@ -16,131 +24,128 @@
 ## Architecture
 
 ```
-session-intelligence (4002) ←→ knowledge-bridge (4003) ←→ UCKN (4004)
-                                       ↓
+session-intelligence (4002) <-> knowledge-bridge (4003) <-> UCKN (4004)
+                                       |
                                   Curator Daemon
 ```
 
+## Implementation Status
+
+| Phase | Status | Details |
+|-------|--------|---------|
+| Phase 1: Foundation | ✅ COMPLETE | All 19 source files |
+| Phase 2: Promotion Flow | ✅ COMPLETE | promote_learning, batch_promote, get_staging_queue |
+| Phase 3: Retrieval Flow | ✅ COMPLETE | search_for_session, prime_session |
+| Phase 4: Feedback Loop | ✅ COMPLETE | report_outcome |
+| Phase 5: Webhook System | ✅ COMPLETE | register/unregister/list webhooks |
+| Phase 6: Testing | ✅ COMPLETE | 51 tests passing |
+
+## Source Files (19)
+
+```
+src/
+├── http_lean_server.py              # Entry point
+└── knowledge_bridge/
+    ├── __init__.py
+    ├── core/
+    │   ├── __init__.py
+    │   ├── models.py                # 9 Pydantic models
+    │   └── service.py               # Domain service (569 lines)
+    ├── persistence/
+    │   ├── __init__.py
+    │   ├── base.py                  # Abstract backend
+    │   └── postgresql.py            # PostgreSQL adapter
+    ├── clients/
+    │   ├── __init__.py
+    │   ├── session_intel.py         # HTTP client for 4002
+    │   └── uckn.py                  # Mock client for 4004
+    ├── webhooks/
+    │   ├── __init__.py
+    │   ├── events.py                # Event types
+    │   └── emitter.py               # HTTP POST delivery
+    ├── lean/
+    │   ├── __init__.py
+    │   └── interface.py             # 10 MCP tools (598 lines)
+    └── transport/
+        ├── __init__.py
+        ├── http_server.py           # FastAPI server
+        └── security.py              # LocalhostOnlyMiddleware
+```
+
+## Test Files (5)
+
+```
+tests/
+├── __init__.py
+├── conftest.py                      # MockDatabaseBackend + fixtures
+├── test_promotion.py                # 14 tests
+├── test_retrieval.py                # 9 tests
+├── test_feedback.py                 # 6 tests
+├── test_webhooks.py                 # 9 tests
+└── test_interface.py                # 13 tests
+```
+
+## Tools Implemented (10)
+
+| Category | Tool | Status |
+|----------|------|--------|
+| Promotion | `promote_learning` | ✅ |
+| Promotion | `batch_promote` | ✅ |
+| Promotion | `get_staging_queue` | ✅ |
+| Retrieval | `search_for_session` | ✅ |
+| Retrieval | `prime_session` | ✅ |
+| Feedback | `report_outcome` | ✅ |
+| Webhooks | `register_webhook` | ✅ |
+| Webhooks | `unregister_webhook` | ✅ |
+| Webhooks | `list_webhooks` | ✅ |
+| Inter-Server | `request_session_data` | ✅ |
+
 ## Key Patterns
 
-### 1. Lean MCP Interface (from template)
+### 1. Lean MCP Interface
 ```python
-# Only 3 tools exposed
-discover_tools(pattern) → list tools
-get_tool_spec(name) → get schema
-execute_tool(name, params) → run tool
+discover_tools(pattern) -> list tools
+get_tool_spec(name) -> get schema
+execute_tool(name, params) -> run tool
 ```
 
-### 2. HTTP Transport Required
-This server MUST use HTTP transport for cross-session communication.
+### 2. HTTP Transport
+FastAPI server on port 4003 with localhost-only security.
 
-### 3. Webhook-Based Events
-Emit events to subscribers (curator daemon, dashboard).
+### 3. Webhook Events
+HTTP POST delivery with retry logic for event subscribers.
 
-## Implementation Checklist
+## Database (PostgreSQL)
 
-- [x] Phase 1: Foundation (skeleton, database, HTTP) **IN PROGRESS**
-- [ ] Phase 2: Promotion Flow (promote_learning, batch_promote)
-- [ ] Phase 3: Retrieval Flow (search_for_session, prime_session)
-- [ ] Phase 4: Feedback Loop (report_outcome)
-- [ ] Phase 5: Webhook System
-- [ ] Phase 6: Testing
-
-## Phase 1 Progress (2026-01-03)
-
-**Plan file**: `~/.claude/plans/splendid-foraging-anchor.md`
-
-### User Decisions
-- **Database**: PostgreSQL (not SQLite) - consistent with session-intelligence
-- **UCKN**: Mock client until UCKN server ready
-- **Webhooks**: HTTP POST with retry (not just SSE)
-- **Template**: Backport patterns to template later
-
-### Completed Files (16/22)
-```
-✅ pyproject.toml
-✅ src/knowledge_bridge/__init__.py
-✅ src/knowledge_bridge/core/__init__.py
-✅ src/knowledge_bridge/core/models.py          # Pydantic models
-✅ src/knowledge_bridge/persistence/__init__.py
-✅ src/knowledge_bridge/persistence/base.py     # Abstract backend
-✅ src/knowledge_bridge/persistence/postgresql.py  # Full PostgreSQL adapter
-✅ src/knowledge_bridge/clients/__init__.py
-✅ src/knowledge_bridge/clients/session_intel.py   # HTTP client for 4002
-✅ src/knowledge_bridge/clients/uckn.py            # Mock client for 4004
-✅ src/knowledge_bridge/webhooks/__init__.py
-✅ src/knowledge_bridge/webhooks/events.py         # Event types
-✅ src/knowledge_bridge/webhooks/emitter.py        # HTTP POST delivery
-✅ src/knowledge_bridge/lean/__init__.py
-✅ src/knowledge_bridge/transport/__init__.py
-✅ tests/__init__.py
-```
-
-### Remaining Files (6)
-```
-⏳ src/knowledge_bridge/core/service.py         # Domain service
-⏳ src/knowledge_bridge/lean/interface.py       # 10 MCP tools (WAS WRITING)
-⏳ src/knowledge_bridge/transport/http_server.py  # FastAPI server
-⏳ src/knowledge_bridge/transport/security.py   # LocalhostOnlyMiddleware
-⏳ src/http_lean_server.py                      # Entry point
-⏳ tests/conftest.py                            # Test fixtures
-```
-
-### Resume Instructions
-To continue implementation:
-1. Create `src/knowledge_bridge/lean/interface.py` with 10 tools
-2. Create `src/knowledge_bridge/transport/http_server.py`
-3. Create `src/knowledge_bridge/transport/security.py`
-4. Create `src/http_lean_server.py` (entry point)
-5. Create `tests/conftest.py`
-6. Run `git init && git add . && git commit`
-7. Test with `pixi run http-server`
-
-## Tools to Implement
-
-### Promotion (→ UCKN)
-- `promote_learning` - Single learning promotion
-- `batch_promote` - Session-end batch promotion
-- `get_staging_queue` - View pending entries
-
-### Retrieval (← UCKN)
-- `search_for_session` - Query knowledge for session
-- `prime_session` - Proactive knowledge injection
-
-### Feedback
-- `report_outcome` - Track solution success/failure
-
-### Webhooks
-- `register_webhook` - Subscribe to events
-- `unregister_webhook` - Unsubscribe
-- `list_webhooks` - List subscriptions
-
-### Inter-Server
-- `request_session_data` - Query session-intelligence
-- `request_uckn_update` - Update UCKN entries
-
-## Database
-
-SQLite with tables:
+Tables:
 - `staging_queue` - Learnings awaiting promotion
 - `webhooks` - Event subscriptions
 - `event_log` - Emitted events
 - `feedback` - Solution outcomes
 - `search_log` - Query analytics
+- `schema_version` - Schema tracking
+
+Connection: `postgresql://localhost/knowledge_bridge`
 
 ## Commands
 
 ```bash
 pixi run http-server      # Start on port 4003
 pixi run http-server-dev  # With debug logging
-pixi run test             # Run tests
+pixi run db-init          # Initialize database
+PYTHONPATH=src pixi run -e dev test  # Run tests
 pixi run lint             # Check code quality
 ```
 
-## Session Intelligence Notes
+## Next Steps
 
-Decisions logged in session-intelligence:
-- `decision-e2abc300`: Separate bridge server architecture
-- `decision-3608f0c6`: Standalone curator daemon
-- `decision-a9236545`: Webhook-based communication
-- `decision-f3e37064`: Sonnet for curator model
+1. **Integration Testing**: Test with real session-intelligence server
+2. **UCKN Integration**: Replace mock client when UCKN is ready
+3. **Curator Daemon**: Implement standalone curation process
+4. **Monitoring**: Add metrics and dashboard integration
+
+## User Decisions (from design session)
+
+- **Database**: PostgreSQL (consistent with session-intelligence)
+- **UCKN**: Mock client until UCKN server ready
+- **Webhooks**: HTTP POST with retry (not just SSE)
