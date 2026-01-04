@@ -1,0 +1,50 @@
+# User-level systemd service for knowledge-bridge
+# Install to: ~/.config/systemd/user/knowledge-bridge.service
+#
+# Installation:
+#   mkdir -p ~/.config/systemd/user
+#   cp knowledge-bridge.user.service ~/.config/systemd/user/knowledge-bridge.service
+#   systemctl --user daemon-reload
+#   systemctl --user enable knowledge-bridge
+#   systemctl --user start knowledge-bridge
+#
+# Commands:
+#   systemctl --user status knowledge-bridge
+#   systemctl --user stop knowledge-bridge
+#   systemctl --user restart knowledge-bridge
+#   journalctl --user -u knowledge-bridge -f
+
+[Unit]
+Description=Knowledge-Bridge MCP Server (User)
+Documentation=https://github.com/MementoRC/knowledge-bridge
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/ClaudeCode/Servers/knowledge-bridge/development
+
+# Environment
+Environment=KNOWLEDGE_BRIDGE_PORT=4003
+Environment=KNOWLEDGE_BRIDGE_DB_DSN=postgresql://localhost/knowledge_bridge
+Environment=SESSION_INTELLIGENCE_URL=http://127.0.0.1:4002
+Environment=UCKN_URL=http://127.0.0.1:4004
+Environment=LOG_LEVEL=INFO
+Environment=PYTHONPATH=%h/ClaudeCode/Servers/knowledge-bridge/development/src
+
+# Use pixi to run the server
+ExecStart=%h/.pixi/bin/pixi run http-server
+ExecReload=/bin/kill -HUP $MAINPID
+
+# Restart configuration
+Restart=on-failure
+RestartSec=5
+StartLimitBurst=3
+StartLimitIntervalSec=60
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=knowledge-bridge
+
+[Install]
+WantedBy=default.target

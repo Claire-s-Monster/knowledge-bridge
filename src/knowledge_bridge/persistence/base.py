@@ -1,13 +1,29 @@
-"""Base database backend interface for knowledge-bridge."""
+"""Base database backend interface for knowledge-bridge.
+
+Provides a base class for database backends:
+- SQLite (development, single-user)
+- PostgreSQL (production, multi-session)
+
+Data directory: ~/.claude/knowledge-bridge/
+"""
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
-# Default PostgreSQL connection string
+# Default global location for knowledge-bridge data
+DEFAULT_DATA_DIR = Path.home() / ".claude" / "knowledge-bridge"
+DEFAULT_SQLITE_PATH = DEFAULT_DATA_DIR / "knowledge_bridge.db"
 DEFAULT_POSTGRES_DSN = "postgresql://localhost/knowledge_bridge"
+
+
+def get_default_data_dir() -> Path:
+    """Get the default data directory, creating it if needed."""
+    DEFAULT_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    return DEFAULT_DATA_DIR
 
 
 class BaseDatabaseBackend(ABC):
