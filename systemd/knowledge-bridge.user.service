@@ -32,7 +32,7 @@ Environment=LOG_LEVEL=INFO
 Environment=PYTHONPATH=%h/ClaudeCode/Servers/knowledge-bridge/development/src
 
 # Use pixi to run the server
-ExecStart=%h/.pixi/bin/pixi run http-server
+ExecStart=%h/.conda/envs/ClaudeCode/bin/pixi run http-server
 ExecReload=/bin/kill -HUP $MAINPID
 
 # Restart configuration

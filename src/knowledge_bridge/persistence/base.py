@@ -48,9 +48,9 @@ class BaseDatabaseBackend(ABC):
         """Close database connection."""
         pass
 
-    def _get_timestamp(self) -> str:
-        """Get current timestamp in ISO format."""
-        return datetime.now().isoformat()
+    def _get_timestamp(self) -> datetime:
+        """Get current timestamp."""
+        return datetime.now()
 
     # ===== Staging Queue Operations =====
 
