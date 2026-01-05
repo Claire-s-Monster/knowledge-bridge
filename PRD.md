@@ -487,10 +487,10 @@ BRIDGE_EVENTS = {
 - [x] Add session-intelligence client adapter
 - [x] Emit `learning.staged` and `learning.promoted` events
 
-### Phase 3: Retrieval Flow (Priority: P0) ⚠️ PARTIAL
+### Phase 3: Retrieval Flow (Priority: P0) ✅ COMPLETE
 - [x] Implement `search_for_session` tool
 - [x] Implement `prime_session` tool
-- [ ] **Add knowledge-store client adapter (currently mock)**
+- [x] Add knowledge-store client adapter
 - [x] Implement search logging
 
 ### Phase 4: Feedback Loop (Priority: P1) ✅ COMPLETE
@@ -565,7 +565,7 @@ db-reset = "rm -f knowledge_bridge.db && pixi run db-init"
 1. **All 10 tools functional** via lean MCP interface ✅
 2. **HTTP transport working** on port 4003 ✅
 3. **Webhook emission working** with retry logic ✅
-4. **Clients for session-intelligence and knowledge-store** functional ⚠️ (knowledge-store client is mock)
+4. **Clients for session-intelligence and knowledge-store** functional ✅
 5. **Test coverage >80%** ✅ (51 tests)
 6. **Health endpoint** reports connectivity to dependent services ✅
 

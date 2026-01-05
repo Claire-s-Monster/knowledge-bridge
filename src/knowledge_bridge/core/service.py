@@ -10,8 +10,8 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import uuid4
 
+from knowledge_bridge.clients.knowledge_store import KnowledgeStoreClient
 from knowledge_bridge.clients.session_intel import SessionIntelligenceClient
-from knowledge_bridge.clients.uckn import MockUCKNClient
 from knowledge_bridge.persistence.base import BaseDatabaseBackend
 from knowledge_bridge.webhooks.emitter import WebhookEmitter
 from knowledge_bridge.webhooks.events import EventType
@@ -40,7 +40,7 @@ class KnowledgeBridgeService:
         self,
         database: BaseDatabaseBackend,
         session_client: SessionIntelligenceClient,
-        uckn_client: MockUCKNClient,
+        knowledge_store_client: KnowledgeStoreClient,
         webhook_emitter: WebhookEmitter,
     ) -> None:
         """Initialize service with dependencies.
@@ -48,12 +48,12 @@ class KnowledgeBridgeService:
         Args:
             database: Database backend.
             session_client: Session-intelligence HTTP client.
-            uckn_client: UCKN HTTP client (mock for now).
+            knowledge_store_client: Knowledge-store HTTP client.
             webhook_emitter: Webhook emitter for events.
         """
         self.database = database
         self.session_client = session_client
-        self.uckn_client = uckn_client
+        self.knowledge_store_client = knowledge_store_client
         self.webhook_emitter = webhook_emitter
 
     # ===== Promotion Flow =====
@@ -117,7 +117,7 @@ class KnowledgeBridgeService:
         # Decide on immediate vs staged
         if promotion_type == "immediate":
             # Promote directly to UCKN
-            result = await self.uckn_client.promote(content)
+            result = await self.knowledge_store_client.promote(content)
             uckn_id = result.get("id", entry_id)
 
             # Save to staging as promoted
@@ -316,7 +316,7 @@ class KnowledgeBridgeService:
         context = context or {}
 
         # Search UCKN
-        results = await self.uckn_client.search(query, context, limit)
+        results = await self.knowledge_store_client.search(query, context, limit)
 
         # Log the search
         await self.database.save_search({
@@ -547,7 +547,7 @@ class KnowledgeBridgeService:
             Health status dict.
         """
         session_health = await self.session_client.health_check()
-        uckn_health = await self.uckn_client.health_check()
+        knowledge_store_health = await self.knowledge_store_client.health_check()
         db_stats = await self.database.get_statistics()
 
         return {
@@ -560,9 +560,8 @@ class KnowledgeBridgeService:
                 "healthy": session_health,
                 "url": self.session_client.base_url,
             },
-            "uckn": {
-                "healthy": uckn_health,
-                "url": self.uckn_client.base_url,
-                "mock": True,  # Always true until real UCKN
+            "knowledge_store": {
+                "healthy": knowledge_store_health,
+                "url": self.knowledge_store_client.base_url,
             },
         }

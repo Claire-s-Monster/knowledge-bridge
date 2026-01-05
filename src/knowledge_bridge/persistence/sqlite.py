@@ -114,7 +114,8 @@ class SQLiteBackend(BaseDatabaseBackend):
         """Initialize SQLite backend.
 
         Args:
-            db_path: Path to SQLite database file. Defaults to ~/.claude/knowledge-bridge/knowledge_bridge.db.
+            db_path: Path to SQLite database file.
+                Defaults to ~/.claude/knowledge-bridge/knowledge_bridge.db.
         """
         super().__init__()
 
@@ -487,7 +488,8 @@ class SQLiteBackend(BaseDatabaseBackend):
 
         await self._conn.execute(
             """
-            INSERT OR REPLACE INTO feedback (id, session_id, knowledge_id, outcome, notes, reported_at)
+            INSERT OR REPLACE INTO feedback
+            (id, session_id, knowledge_id, outcome, notes, reported_at)
             VALUES (?, ?, ?, ?, ?, ?)
             """,
             (

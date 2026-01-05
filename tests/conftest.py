@@ -226,8 +226,8 @@ def mock_session_client() -> SessionIntelligenceClient:
 
 
 @pytest.fixture
-def mock_uckn_client() -> MockUCKNClient:
-    """Create mock UCKN client."""
+def mock_knowledge_store_client() -> MockUCKNClient:
+    """Create mock knowledge-store client (using MockUCKNClient for testing)."""
     return MockUCKNClient()
 
 
@@ -244,7 +244,7 @@ def mock_webhook_emitter(mock_database: MockDatabaseBackend) -> WebhookEmitter:
 async def service(
     mock_database_async: MockDatabaseBackend,
     mock_session_client: SessionIntelligenceClient,
-    mock_uckn_client: MockUCKNClient,
+    mock_knowledge_store_client: MockUCKNClient,
 ) -> AsyncGenerator[KnowledgeBridgeService, None]:
     """Create service with mock dependencies."""
     emitter = WebhookEmitter(database=mock_database_async)
@@ -253,7 +253,7 @@ async def service(
     svc = KnowledgeBridgeService(
         database=mock_database_async,
         session_client=mock_session_client,
-        uckn_client=mock_uckn_client,
+        knowledge_store_client=mock_knowledge_store_client,
         webhook_emitter=emitter,
     )
     yield svc

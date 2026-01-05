@@ -6,7 +6,8 @@ Usage:
 
 Environment variables:
     KNOWLEDGE_BRIDGE_PORT: Server port (default: 4003)
-    KNOWLEDGE_BRIDGE_DB_PATH: SQLite database path (default: ~/.claude/knowledge-bridge/knowledge_bridge.db)
+    KNOWLEDGE_BRIDGE_DB_PATH: SQLite database path
+        (default: ~/.claude/knowledge-bridge/knowledge_bridge.db)
     SESSION_INTELLIGENCE_URL: Session-intelligence server URL (default: http://127.0.0.1:4002)
     UCKN_URL: UCKN server URL (default: http://127.0.0.1:4004)
     LOG_LEVEL: Logging level (default: INFO)

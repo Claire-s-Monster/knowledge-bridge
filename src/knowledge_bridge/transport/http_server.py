@@ -19,11 +19,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from knowledge_bridge.clients.knowledge_store import KnowledgeStoreClient
 from knowledge_bridge.clients.session_intel import SessionIntelligenceClient
-from knowledge_bridge.clients.uckn import MockUCKNClient
 from knowledge_bridge.core.service import KnowledgeBridgeService
 from knowledge_bridge.lean.interface import LeanMCPInterface
-from knowledge_bridge.persistence.base import DEFAULT_SQLITE_PATH
 from knowledge_bridge.persistence.sqlite import SQLiteBackend
 from knowledge_bridge.webhooks.emitter import WebhookEmitter
 
@@ -90,9 +89,9 @@ def create_app(
 
         # Initialize clients
         session_client = SessionIntelligenceClient(base_url=session_intel_url)
-        uckn_client = MockUCKNClient(base_url=uckn_url)
+        knowledge_store_client = KnowledgeStoreClient(base_url=uckn_url)
         state["session_client"] = session_client
-        state["uckn_client"] = uckn_client
+        state["knowledge_store_client"] = knowledge_store_client
 
         # Initialize webhook emitter
         webhook_emitter = WebhookEmitter(database=database)
@@ -102,7 +101,7 @@ def create_app(
         service = KnowledgeBridgeService(
             database=database,
             session_client=session_client,
-            uckn_client=uckn_client,
+            knowledge_store_client=knowledge_store_client,
             webhook_emitter=webhook_emitter,
         )
         state["service"] = service
@@ -119,7 +118,7 @@ def create_app(
         logger.info("Shutting down knowledge-bridge server...")
         await webhook_emitter.close()
         await session_client.close()
-        await uckn_client.close()
+        await knowledge_store_client.close()
         await database.close()
         logger.info("knowledge-bridge server stopped")
 
