@@ -23,9 +23,9 @@ After=network.target
 Type=simple
 WorkingDirectory=%h/ClaudeCode/Servers/knowledge-bridge/development
 
-# Environment
+# Environment (SQLite database auto-creates on first run)
 Environment=KNOWLEDGE_BRIDGE_PORT=4003
-Environment=KNOWLEDGE_BRIDGE_DB_DSN=postgresql://localhost/knowledge_bridge
+Environment=KNOWLEDGE_BRIDGE_DB_PATH=%h/.claude/knowledge-bridge/knowledge_bridge.db
 Environment=SESSION_INTELLIGENCE_URL=http://127.0.0.1:4002
 Environment=UCKN_URL=http://127.0.0.1:4004
 Environment=LOG_LEVEL=INFO

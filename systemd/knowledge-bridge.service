@@ -1,8 +1,7 @@
 [Unit]
 Description=Knowledge-Bridge MCP Server
 Documentation=https://github.com/MementoRC/knowledge-bridge
-After=network.target postgresql.service
-Wants=postgresql.service
+After=network.target
 
 [Service]
 Type=simple
@@ -10,9 +9,9 @@ User=%i
 Group=%i
 WorkingDirectory=/home/%i/ClaudeCode/Servers/knowledge-bridge/development
 
-# Environment
+# Environment (SQLite database auto-creates on first run)
 Environment=KNOWLEDGE_BRIDGE_PORT=4003
-Environment=KNOWLEDGE_BRIDGE_DB_DSN=postgresql://localhost/knowledge_bridge
+Environment=KNOWLEDGE_BRIDGE_DB_PATH=/home/%i/.claude/knowledge-bridge/knowledge_bridge.db
 Environment=SESSION_INTELLIGENCE_URL=http://127.0.0.1:4002
 Environment=UCKN_URL=http://127.0.0.1:4004
 Environment=LOG_LEVEL=INFO
