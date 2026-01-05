@@ -6,7 +6,7 @@ Usage:
 
 Environment variables:
     KNOWLEDGE_BRIDGE_PORT: Server port (default: 4003)
-    KNOWLEDGE_BRIDGE_DB_DSN: PostgreSQL connection string
+    KNOWLEDGE_BRIDGE_DB_PATH: SQLite database path (default: ~/.claude/knowledge-bridge/knowledge_bridge.db)
     SESSION_INTELLIGENCE_URL: Session-intelligence server URL (default: http://127.0.0.1:4002)
     UCKN_URL: UCKN server URL (default: http://127.0.0.1:4004)
     LOG_LEVEL: Logging level (default: INFO)
@@ -24,7 +24,7 @@ import uvicorn
 # Add src to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from knowledge_bridge.persistence.base import DEFAULT_POSTGRES_DSN
+from knowledge_bridge.persistence.base import DEFAULT_SQLITE_PATH
 from knowledge_bridge.transport.http_server import create_app
 
 # Default configuration
@@ -60,10 +60,10 @@ def parse_args() -> argparse.Namespace:
         help="Logging level",
     )
     parser.add_argument(
-        "--db-dsn",
+        "--db-path",
         type=str,
-        default=os.environ.get("KNOWLEDGE_BRIDGE_DB_DSN", DEFAULT_POSTGRES_DSN),
-        help="PostgreSQL connection string",
+        default=os.environ.get("KNOWLEDGE_BRIDGE_DB_PATH"),
+        help="SQLite database path (default: ~/.claude/knowledge-bridge/knowledge_bridge.db)",
     )
     parser.add_argument(
         "--session-intel-url",
@@ -119,10 +119,11 @@ def main() -> None:
     logger = logging.getLogger(__name__)
 
     # Log configuration
+    db_path_display = args.db_path or str(DEFAULT_SQLITE_PATH)
     logger.info("Starting knowledge-bridge MCP server")
     logger.info(f"  Port: {args.port}")
     logger.info(f"  Host: {args.host}")
-    logger.info(f"  Database: {args.db_dsn.split('@')[-1] if '@' in args.db_dsn else args.db_dsn}")
+    logger.info(f"  Database: {db_path_display}")
     logger.info(f"  Session-intelligence: {args.session_intel_url}")
     logger.info(f"  UCKN: {args.uckn_url}")
     logger.info(f"  Log level: {args.log_level}")
@@ -130,7 +131,7 @@ def main() -> None:
 
     # Create app
     app = create_app(
-        db_dsn=args.db_dsn,
+        db_path=args.db_path,
         session_intel_url=args.session_intel_url,
         uckn_url=args.uckn_url,
         localhost_only=not args.allow_external,

@@ -8,7 +8,7 @@
 # Run tests
 PYTHONPATH=src pixi run -e dev test
 
-# Start server (requires PostgreSQL)
+# Start server (SQLite auto-creates on first run)
 pixi run http-server
 ```
 
@@ -54,7 +54,7 @@ src/
     ├── persistence/
     │   ├── __init__.py
     │   ├── base.py                  # Abstract backend
-    │   └── postgresql.py            # PostgreSQL adapter
+    │   └── sqlite.py                # SQLite adapter
     ├── clients/
     │   ├── __init__.py
     │   ├── session_intel.py         # HTTP client for 4002
@@ -115,7 +115,7 @@ FastAPI server on port 4003 with localhost-only security.
 ### 3. Webhook Events
 HTTP POST delivery with retry logic for event subscribers.
 
-## Database (PostgreSQL)
+## Database (SQLite)
 
 Tables:
 - `staging_queue` - Learnings awaiting promotion
@@ -125,14 +125,14 @@ Tables:
 - `search_log` - Query analytics
 - `schema_version` - Schema tracking
 
-Connection: `postgresql://localhost/knowledge_bridge`
+Location: `~/.claude/knowledge-bridge/knowledge_bridge.db` (auto-created on first run)
 
 ## Commands
 
 ```bash
-pixi run http-server      # Start on port 4003
+pixi run http-server      # Start on port 4003 (SQLite auto-creates)
 pixi run http-server-dev  # With debug logging
-pixi run db-init          # Initialize database
+pixi run db-init          # Create data directory (optional)
 PYTHONPATH=src pixi run -e dev test  # Run tests
 pixi run lint             # Check code quality
 ```
@@ -146,6 +146,6 @@ pixi run lint             # Check code quality
 
 ## User Decisions (from design session)
 
-- **Database**: PostgreSQL (consistent with session-intelligence)
+- **Database**: SQLite (simplified from PostgreSQL for zero external dependencies)
 - **UCKN**: Mock client until UCKN server ready
 - **Webhooks**: HTTP POST with retry (not just SSE)

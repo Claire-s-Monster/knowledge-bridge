@@ -1,10 +1,10 @@
 """Database persistence backends."""
 
-from .base import DEFAULT_POSTGRES_DSN, BaseDatabaseBackend
-from .postgresql import PostgreSQLBackend
+from .base import DEFAULT_SQLITE_PATH, BaseDatabaseBackend
+from .sqlite import SQLiteBackend
 
 __all__ = [
     "BaseDatabaseBackend",
-    "PostgreSQLBackend",
-    "DEFAULT_POSTGRES_DSN",
+    "SQLiteBackend",
+    "DEFAULT_SQLITE_PATH",
 ]

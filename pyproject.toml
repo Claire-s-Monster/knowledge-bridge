@@ -39,8 +39,6 @@ pydantic = ">=2.0.0"
 # HTTP transport dependencies
 fastapi = ">=0.109.0"
 uvicorn = ">=0.27.0"
-# PostgreSQL support
-asyncpg = ">=0.29.0"
 
 [tool.pixi.pypi-dependencies]
 knowledge-bridge = { path = ".", editable = true }
@@ -50,13 +48,15 @@ python-dateutil = ">=2.8.0"
 sse-starlette = ">=2.0.0"
 # Inter-server HTTP client
 httpx = ">=0.25.0"
+# SQLite async support
+aiosqlite = ">=0.19.0"
 
 [tool.pixi.tasks]
 # HTTP transport server
 http-server = { cmd = "python src/http_lean_server.py", env = { PYTHONPATH = "src" } }
 http-server-dev = { cmd = "python src/http_lean_server.py --log-level DEBUG", env = { PYTHONPATH = "src" } }
-# Database initialization
-db-init = { cmd = "python -c 'from knowledge_bridge.persistence.postgresql import PostgreSQLBackend; import asyncio; asyncio.run(PostgreSQLBackend().initialize())'", env = { PYTHONPATH = "src" } }
+# Database initialization (creates directory, SQLite auto-creates file)
+db-init = { cmd = "python -c 'from pathlib import Path; Path.home().joinpath(\".claude/knowledge-bridge\").mkdir(parents=True, exist_ok=True); print(\"Data directory ready\")'", env = { PYTHONPATH = "src" } }
 # Quality tasks
 test = "pytest tests/ -v --ignore=.pixi"
 lint = "ruff check src/ --fix"

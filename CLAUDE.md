@@ -67,18 +67,18 @@ FastAPI server on port 4003 with localhost-only security middleware.
 ### 3. Webhook-Based Events
 HTTP POST delivery with retry logic for event subscribers.
 
-## Database (PostgreSQL)
+## Database (SQLite)
 
 Tables: `staging_queue`, `webhooks`, `event_log`, `feedback`, `search_log`, `schema_version`
 
-Connection: `postgresql://localhost/knowledge_bridge`
+Location: `~/.claude/knowledge-bridge/knowledge_bridge.db` (auto-created on first run)
 
 ## Commands
 
 ```bash
-pixi run http-server      # Start on port 4003
+pixi run http-server      # Start on port 4003 (SQLite auto-creates)
 pixi run http-server-dev  # With debug logging
-pixi run db-init          # Initialize database
+pixi run db-init          # Create data directory (optional)
 PYTHONPATH=src pixi run -e dev test  # Run 51 tests
 pixi run lint             # Check code quality
 ```

@@ -23,8 +23,8 @@ from knowledge_bridge.clients.session_intel import SessionIntelligenceClient
 from knowledge_bridge.clients.uckn import MockUCKNClient
 from knowledge_bridge.core.service import KnowledgeBridgeService
 from knowledge_bridge.lean.interface import LeanMCPInterface
-from knowledge_bridge.persistence.base import DEFAULT_POSTGRES_DSN
-from knowledge_bridge.persistence.postgresql import PostgreSQLBackend
+from knowledge_bridge.persistence.base import DEFAULT_SQLITE_PATH
+from knowledge_bridge.persistence.sqlite import SQLiteBackend
 from knowledge_bridge.webhooks.emitter import WebhookEmitter
 
 from .security import LocalhostOnlyMiddleware
@@ -58,7 +58,7 @@ class ExecuteToolRequest(BaseModel):
 
 
 def create_app(
-    db_dsn: str = DEFAULT_POSTGRES_DSN,
+    db_path: str | None = None,
     session_intel_url: str = "http://127.0.0.1:4002",
     uckn_url: str = "http://127.0.0.1:4004",
     localhost_only: bool = True,
@@ -66,7 +66,7 @@ def create_app(
     """Create FastAPI application.
 
     Args:
-        db_dsn: PostgreSQL connection string.
+        db_path: SQLite database path. Defaults to ~/.claude/knowledge-bridge/knowledge_bridge.db.
         session_intel_url: Session-intelligence server URL.
         uckn_url: UCKN server URL.
         localhost_only: Whether to restrict to localhost.
@@ -84,7 +84,7 @@ def create_app(
         logger.info("Starting knowledge-bridge server...")
 
         # Initialize database
-        database = PostgreSQLBackend(dsn=db_dsn)
+        database = SQLiteBackend(db_path=db_path)
         await database.initialize()
         state["database"] = database
 
