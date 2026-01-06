@@ -141,6 +141,24 @@ TOOL_SPECS: dict[str, ToolSpec] = {
             {"status": "pending", "limit": 20},
         ],
     ),
+    "get_staged_entry": ToolSpec(
+        name="get_staged_entry",
+        description="Get a single staged entry by ID",
+        category="promotion",
+        parameters={
+            "type": "object",
+            "properties": {
+                "entry_id": {
+                    "type": "string",
+                    "description": "The staged entry ID",
+                },
+            },
+            "required": ["entry_id"],
+        },
+        examples=[
+            {"entry_id": "kb-abc123"},
+        ],
+    ),
     # Retrieval tools
     "search_for_session": ToolSpec(
         name="search_for_session",
@@ -359,6 +377,7 @@ class LeanMCPInterface:
             "promote_learning": self._promote_learning,
             "batch_promote": self._batch_promote,
             "get_staging_queue": self._get_staging_queue,
+            "get_staged_entry": self._get_staged_entry,
             "search_for_session": self._search_for_session,
             "prime_session": self._prime_session,
             "report_outcome": self._report_outcome,
@@ -512,6 +531,16 @@ class LeanMCPInterface:
             limit=limit,
         )
         return [e.model_dump() for e in entries]
+
+    async def _get_staged_entry(
+        self,
+        entry_id: str,
+    ) -> dict[str, Any] | None:
+        """Handle get_staged_entry tool."""
+        entry = await self.service.get_staged_entry(entry_id)
+        if entry is None:
+            return None
+        return entry.model_dump()
 
     async def _search_for_session(
         self,

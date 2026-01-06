@@ -19,9 +19,9 @@ class TestDiscoverTools:
         """Test discovering all tools."""
         result = await lean_interface.discover_tools()
 
-        assert result["total_tools"] == 10
-        assert result["filtered_count"] == 10
-        assert len(result["available_tools"]) == 10
+        assert result["total_tools"] == 11
+        assert result["filtered_count"] == 11
+        assert len(result["available_tools"]) == 11
         assert "categories" in result
 
     @pytest.mark.asyncio

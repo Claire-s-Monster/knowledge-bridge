@@ -137,6 +137,7 @@ class KnowledgeBridgeService:
                     "entry_id": entry_id,
                     "uckn_id": uckn_id,
                     "source": source,
+                    "content": content,
                 },
             )
 
@@ -162,6 +163,7 @@ class KnowledgeBridgeService:
                 {
                     "entry_id": entry_id,
                     "source": source,
+                    "content": content,
                 },
             )
 
@@ -292,6 +294,30 @@ class KnowledgeBridgeService:
             )
             for entry in entries
         ]
+
+    async def get_staged_entry(self, entry_id: str) -> StagedEntry | None:
+        """Get a single staged entry by ID.
+
+        Args:
+            entry_id: The entry ID.
+
+        Returns:
+            StagedEntry if found, None otherwise.
+        """
+        entry = await self.database.get_staged_entry(entry_id)
+        if not entry:
+            return None
+
+        return StagedEntry(
+            id=entry["id"],
+            source=entry["source"],
+            source_id=entry.get("source_id"),
+            content=entry.get("content", {}),
+            status=entry.get("status", "pending"),
+            created_at=entry.get("created_at", datetime.now()),
+            curator_notes=entry.get("curator_notes"),
+            promoted_to=entry.get("promoted_to"),
+        )
 
     # ===== Retrieval Flow =====
 
