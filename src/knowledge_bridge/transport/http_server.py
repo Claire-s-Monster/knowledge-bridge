@@ -1,22 +1,43 @@
 """FastAPI HTTP server for knowledge-bridge MCP server.
 
 Exposes the lean MCP interface via HTTP endpoints:
-- POST /mcp/discover_tools
-- POST /mcp/get_tool_spec
-- POST /mcp/execute_tool
+- POST /mcp - JSON-RPC 2.0 MCP requests (for Claude Code)
+- POST /mcp/discover_tools - REST endpoint
+- POST /mcp/get_tool_spec - REST endpoint
+- POST /mcp/execute_tool - REST endpoint
 - GET /health
 - GET /api/statistics
 """
 
 from __future__ import annotations
 
+import dataclasses
+import json
 import logging
+import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+
+class DatetimeJSONEncoder(json.JSONEncoder):
+    """JSON encoder that handles datetime and dataclass objects."""
+
+    def default(self, obj: Any) -> Any:
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+            return dataclasses.asdict(obj)
+        if hasattr(obj, "model_dump"):  # Pydantic v2
+            return obj.model_dump()
+        if hasattr(obj, "dict"):  # Pydantic v1
+            return obj.dict()
+        return super().default(obj)
+
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from knowledge_bridge.clients.knowledge_store import KnowledgeStoreClient
@@ -29,6 +50,12 @@ from knowledge_bridge.webhooks.emitter import WebhookEmitter
 from .security import LocalhostOnlyMiddleware
 
 logger = logging.getLogger(__name__)
+
+# MCP Protocol version
+MCP_PROTOCOL_VERSION = "2024-11-05"
+
+# Simple in-memory MCP session storage (for lightweight session tracking)
+_mcp_sessions: dict[str, dict[str, Any]] = {}
 
 
 # ===== Request/Response Models =====
@@ -142,7 +169,189 @@ def create_app(
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["MCP-Session-Id", "MCP-Protocol-Version"],
     )
+
+    # ===== JSON-RPC MCP Endpoint (for Claude Code) =====
+
+    @app.post("/mcp")
+    async def handle_mcp_jsonrpc(
+        request: Request,
+        mcp_session_id: str | None = Header(None, alias="MCP-Session-Id"),
+    ) -> JSONResponse:
+        """Handle MCP JSON-RPC 2.0 requests from Claude Code."""
+        interface = state.get("interface")
+        if not interface:
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "jsonrpc": "2.0",
+                    "id": None,
+                    "error": {"code": -32603, "message": "Server not ready"},
+                },
+            )
+
+        try:
+            body = await request.json()
+        except json.JSONDecodeError:
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "jsonrpc": "2.0",
+                    "id": None,
+                    "error": {"code": -32700, "message": "Parse error"},
+                },
+            )
+
+        method = body.get("method")
+        params = body.get("params", {})
+        req_id = body.get("id")
+
+        # Handle initialize - create MCP session
+        if method == "initialize":
+            new_session_id = str(uuid.uuid4())
+            _mcp_sessions[new_session_id] = {
+                "created": True,
+                "client_info": params.get("clientInfo"),
+            }
+            response = JSONResponse(
+                content={
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "result": {
+                        "protocolVersion": MCP_PROTOCOL_VERSION,
+                        "capabilities": {
+                            "tools": {"listChanged": True},
+                        },
+                        "serverInfo": {"name": "knowledge-bridge", "version": "0.1.0"},
+                    },
+                }
+            )
+            response.headers["MCP-Session-Id"] = new_session_id
+            response.headers["MCP-Protocol-Version"] = MCP_PROTOCOL_VERSION
+            return response
+
+        # For other methods, validate session (optional - be lenient)
+        if mcp_session_id and mcp_session_id not in _mcp_sessions:
+            # Create session on-the-fly for lenient handling
+            _mcp_sessions[mcp_session_id] = {"created": True}
+
+        try:
+            result = await _handle_mcp_method(method, params, interface, req_id)
+            return JSONResponse(content=result)
+        except Exception as e:
+            logger.exception(f"Error handling MCP method {method}")
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "error": {"code": -32603, "message": str(e)},
+                },
+            )
+
+    async def _handle_mcp_method(
+        method: str,
+        params: dict[str, Any],
+        interface: LeanMCPInterface,
+        req_id: Any,
+    ) -> dict[str, Any]:
+        """Handle individual MCP methods."""
+        # tools/list - return the 3 meta-tools
+        if method == "tools/list":
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "tools": [
+                        {
+                            "name": "discover_tools",
+                            "description": (
+                                "Discover knowledge promotion, retrieval, feedback, and webhook tools. "
+                                "TRIGGERS: 'what tools', 'list tools', 'available functions' "
+                                "USE WHEN: starting session, exploring capabilities"
+                            ),
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {"pattern": {"type": "string", "default": ""}},
+                            },
+                        },
+                        {
+                            "name": "get_tool_spec",
+                            "description": (
+                                "Get parameter schema for knowledge-bridge tools. "
+                                "USE WHEN: need exact parameters, debugging validation errors"
+                            ),
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {"tool_name": {"type": "string"}},
+                                "required": ["tool_name"],
+                            },
+                        },
+                        {
+                            "name": "execute_tool",
+                            "description": (
+                                "Execute knowledge promotion, retrieval, feedback, or webhook operations. "
+                                "Returns domain-specific results for knowledge management"
+                            ),
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "tool_name": {"type": "string"},
+                                    "parameters": {"type": "object"},
+                                },
+                                "required": ["tool_name", "parameters"],
+                            },
+                        },
+                    ]
+                },
+            }
+
+        # tools/call - execute a tool
+        if method == "tools/call":
+            tool_name = params.get("name")
+            arguments = params.get("arguments", {})
+
+            if tool_name == "discover_tools":
+                pattern = arguments.get("pattern", "")
+                tool_result = await interface.discover_tools(pattern)
+            elif tool_name == "get_tool_spec":
+                target = arguments.get("tool_name", "")
+                tool_result = await interface.get_tool_spec(target)
+            elif tool_name == "execute_tool":
+                target = arguments.get("tool_name", "")
+                tool_params = arguments.get("parameters", {})
+                tool_result = await interface.execute_tool(target, tool_params)
+            else:
+                tool_result = {"error": f"Unknown tool: {tool_name}"}
+
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "content": [
+                        {"type": "text", "text": json.dumps(tool_result, cls=DatetimeJSONEncoder)}
+                    ]
+                },
+            }
+
+        # notifications/initialized - acknowledge
+        if method == "notifications/initialized":
+            return {"jsonrpc": "2.0", "id": req_id, "result": {}}
+
+        # resources/list, prompts/list - empty for this server
+        if method in ("resources/list", "resources/templates/list"):
+            return {"jsonrpc": "2.0", "id": req_id, "result": {"resources": []}}
+
+        if method == "prompts/list":
+            return {"jsonrpc": "2.0", "id": req_id, "result": {"prompts": []}}
+
+        # Unknown method
+        return {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "error": {"code": -32601, "message": f"Method not found: {method}"},
+        }
 
     # ===== Health Endpoints =====
 
