@@ -80,6 +80,17 @@ class ExecuteToolRequest(BaseModel):
     parameters: dict[str, Any] = {}
 
 
+class CurationDecisionRequest(BaseModel):
+    """Request from curator daemon with curation decision."""
+
+    entry_id: str
+    decision: str  # "promote" | "reject" | "merge" | "flag_human"
+    reason: str
+    confidence: float = 0.8
+    merged_content: dict[str, Any] | None = None
+    similar_entries: list[str] = []
+
+
 # ===== Application Factory =====
 
 
@@ -267,9 +278,12 @@ def create_app(
                         {
                             "name": "discover_tools",
                             "description": (
-                                "Discover knowledge promotion, retrieval, feedback, and webhook tools. "
-                                "TRIGGERS: 'what tools', 'list tools', 'available functions' "
-                                "USE WHEN: starting session, exploring capabilities"
+                                "Discover knowledge-bridge tools for learning promotion, "
+                                "knowledge retrieval, outcome feedback, and webhook management (11 tools). "
+                                "TRIGGERS: 'promote learning', 'search knowledge', 'staging queue', "
+                                "'prime session', 'report outcome', 'webhooks'. "
+                                "USE WHEN: starting session, finding promotion/retrieval tools, "
+                                "exploring knowledge bridge capabilities"
                             ),
                             "inputSchema": {
                                 "type": "object",
@@ -279,8 +293,10 @@ def create_app(
                         {
                             "name": "get_tool_spec",
                             "description": (
-                                "Get parameter schema for knowledge-bridge tools. "
-                                "USE WHEN: need exact parameters, debugging validation errors"
+                                "Get full parameter schema for knowledge-bridge tools including "
+                                "promotion workflows, search contexts, and webhook configurations. "
+                                "USE WHEN: need exact parameters for promote_learning, "
+                                "search_for_session, register_webhook, or other knowledge tools"
                             ),
                             "inputSchema": {
                                 "type": "object",
@@ -291,8 +307,11 @@ def create_app(
                         {
                             "name": "execute_tool",
                             "description": (
-                                "Execute knowledge promotion, retrieval, feedback, or webhook operations. "
-                                "Returns domain-specific results for knowledge management"
+                                "Execute knowledge-bridge operations: promote learnings to UCKN, "
+                                "search knowledge base, prime sessions with context, report outcomes, "
+                                "manage webhooks. "
+                                "USE WHEN: promoting session learnings, searching for solutions, "
+                                "reporting knowledge application results, setting up event subscriptions"
                             ),
                             "inputSchema": {
                                 "type": "object",
@@ -375,7 +394,11 @@ def create_app(
 
     @app.post("/mcp/discover_tools")
     async def discover_tools(request: DiscoverToolsRequest) -> dict[str, Any]:
-        """Discover available tools."""
+        """Discover knowledge-bridge tools (11 tools).
+
+        Categories: promotion (4), retrieval (2), feedback (1), webhooks (3), inter_server (1).
+        USE WHEN: starting session, finding promotion/retrieval tools, exploring capabilities.
+        """
         interface = state.get("interface")
         if not interface:
             raise HTTPException(status_code=503, detail="Server not ready")
@@ -383,7 +406,10 @@ def create_app(
 
     @app.post("/mcp/get_tool_spec")
     async def get_tool_spec(request: GetToolSpecRequest) -> dict[str, Any]:
-        """Get tool specification."""
+        """Get full parameter schema for a knowledge-bridge tool.
+
+        USE WHEN: need exact parameters for promote_learning, search_for_session, etc.
+        """
         interface = state.get("interface")
         if not interface:
             raise HTTPException(status_code=503, detail="Server not ready")
@@ -391,7 +417,11 @@ def create_app(
 
     @app.post("/mcp/execute_tool")
     async def execute_tool(request: ExecuteToolRequest) -> dict[str, Any]:
-        """Execute a tool."""
+        """Execute a knowledge-bridge tool.
+
+        Supports: promote_learning, batch_promote, get_staging_queue, search_for_session,
+        prime_session, report_outcome, register_webhook, and more.
+        """
         interface = state.get("interface")
         if not interface:
             raise HTTPException(status_code=503, detail="Server not ready")
@@ -435,5 +465,74 @@ def create_app(
             {"session_id": session_id, "query": query, "limit": limit},
         )
         return result
+
+    # ===== Curator Callback Endpoint =====
+
+    @app.post("/curator/decision")
+    async def curator_decision(request: CurationDecisionRequest) -> dict[str, Any]:
+        """Receive curation decision from curator daemon.
+
+        Updates the staging queue entry status based on curator's decision.
+        Emits curation.completed webhook event.
+        """
+        database = state.get("database")
+        webhook_emitter = state.get("webhook_emitter")
+
+        if not database:
+            raise HTTPException(status_code=503, detail="Database not ready")
+
+        # Map decision to status
+        decision_to_status = {
+            "promote": "promoted",
+            "reject": "rejected",
+            "merge": "merged",
+            "flag_human": "flagged",
+        }
+        status = decision_to_status.get(request.decision, "reviewed")
+
+        # Build curator notes
+        curator_notes = f"{request.decision}: {request.reason} (confidence: {request.confidence:.2f})"
+        if request.similar_entries:
+            curator_notes += f"\nSimilar entries: {', '.join(request.similar_entries)}"
+
+        try:
+            # Update staging entry
+            success = await database.update_staged_entry_status(
+                entry_id=request.entry_id,
+                status=status,
+                curator_notes=curator_notes,
+                promoted_to=None,  # Will be set if actually promoted to UCKN
+            )
+
+            if not success:
+                logger.warning(f"Entry {request.entry_id} not found in staging queue")
+                raise HTTPException(status_code=404, detail=f"Entry {request.entry_id} not found")
+
+            # Emit webhook event
+            if webhook_emitter:
+                await webhook_emitter.emit(
+                    "curation.completed",
+                    {
+                        "entry_id": request.entry_id,
+                        "decision": request.decision,
+                        "reason": request.reason,
+                        "confidence": request.confidence,
+                        "status": status,
+                    },
+                )
+
+            logger.info(f"Curator decision for {request.entry_id}: {request.decision}")
+            return {
+                "success": True,
+                "entry_id": request.entry_id,
+                "status": status,
+                "message": f"Entry updated to {status}",
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.exception(f"Error processing curator decision for {request.entry_id}")
+            raise HTTPException(status_code=500, detail=str(e))
 
     return app
