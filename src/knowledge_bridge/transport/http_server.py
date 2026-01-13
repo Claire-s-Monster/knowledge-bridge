@@ -18,22 +18,7 @@ import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import Any
-
-
-class DatetimeJSONEncoder(json.JSONEncoder):
-    """JSON encoder that handles datetime and dataclass objects."""
-
-    def default(self, obj: Any) -> Any:
-        if isinstance(obj, datetime):
-            return obj.isoformat()
-        if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
-            return dataclasses.asdict(obj)
-        if hasattr(obj, "model_dump"):  # Pydantic v2
-            return obj.model_dump()
-        if hasattr(obj, "dict"):  # Pydantic v1
-            return obj.dict()
-        return super().default(obj)
+from typing import Any, cast
 
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -50,6 +35,21 @@ from knowledge_bridge.webhooks.emitter import WebhookEmitter
 from .security import LocalhostOnlyMiddleware
 
 logger = logging.getLogger(__name__)
+
+
+class DatetimeJSONEncoder(json.JSONEncoder):
+    """JSON encoder that handles datetime and dataclass objects."""
+
+    def default(self, o: Any) -> Any:  # noqa: ANN401
+        if isinstance(o, datetime):
+            return o.isoformat()
+        if dataclasses.is_dataclass(o) and not isinstance(o, type):
+            return dataclasses.asdict(o)
+        if hasattr(o, "model_dump"):  # Pydantic v2
+            return o.model_dump()
+        if hasattr(o, "dict"):  # Pydantic v1
+            return o.dict()
+        return super().default(o)
 
 # MCP Protocol version
 MCP_PROTOCOL_VERSION = "2024-11-05"
@@ -278,12 +278,13 @@ def create_app(
                         {
                             "name": "discover_tools",
                             "description": (
-                                "Discover knowledge-bridge tools for learning promotion, "
-                                "knowledge retrieval, outcome feedback, and webhook management (11 tools). "
-                                "TRIGGERS: 'promote learning', 'search knowledge', 'staging queue', "
-                                "'prime session', 'report outcome', 'webhooks'. "
-                                "USE WHEN: starting session, finding promotion/retrieval tools, "
-                                "exploring knowledge bridge capabilities"
+                                "Discover knowledge-bridge tools for learning "
+                                "promotion, knowledge retrieval, outcome feedback, "
+                                "and webhook management (11 tools). "
+                                "TRIGGERS: 'promote learning', 'search knowledge', "
+                                "'staging queue', 'prime session', 'report outcome', "
+                                "'webhooks'. USE WHEN: starting session, finding "
+                                "promotion/retrieval tools, exploring capabilities"
                             ),
                             "inputSchema": {
                                 "type": "object",
@@ -307,11 +308,12 @@ def create_app(
                         {
                             "name": "execute_tool",
                             "description": (
-                                "Execute knowledge-bridge operations: promote learnings to UCKN, "
-                                "search knowledge base, prime sessions with context, report outcomes, "
-                                "manage webhooks. "
-                                "USE WHEN: promoting session learnings, searching for solutions, "
-                                "reporting knowledge application results, setting up event subscriptions"
+                                "Execute knowledge-bridge operations: promote "
+                                "learnings to UCKN, search knowledge base, prime "
+                                "sessions with context, report outcomes, manage "
+                                "webhooks. USE WHEN: promoting session learnings, "
+                                "searching for solutions, reporting knowledge "
+                                "application results, setting up event subscriptions"
                             ),
                             "inputSchema": {
                                 "type": "object",
@@ -379,7 +381,7 @@ def create_app(
         """Health check endpoint."""
         service = state.get("service")
         if service:
-            return await service.get_health()
+            return cast(dict[str, Any], await service.get_health())
         return {"status": "starting"}
 
     @app.get("/api/statistics")
@@ -387,7 +389,7 @@ def create_app(
         """Get server statistics."""
         database = state.get("database")
         if database:
-            return await database.get_statistics()
+            return cast(dict[str, Any], await database.get_statistics())
         return {"error": "Database not initialized"}
 
     # ===== MCP Endpoints =====
@@ -402,7 +404,7 @@ def create_app(
         interface = state.get("interface")
         if not interface:
             raise HTTPException(status_code=503, detail="Server not ready")
-        return await interface.discover_tools(request.pattern)
+        return cast(dict[str, Any], await interface.discover_tools(request.pattern))
 
     @app.post("/mcp/get_tool_spec")
     async def get_tool_spec(request: GetToolSpecRequest) -> dict[str, Any]:
@@ -413,7 +415,7 @@ def create_app(
         interface = state.get("interface")
         if not interface:
             raise HTTPException(status_code=503, detail="Server not ready")
-        return await interface.get_tool_spec(request.tool_name)
+        return cast(dict[str, Any], await interface.get_tool_spec(request.tool_name))
 
     @app.post("/mcp/execute_tool")
     async def execute_tool(request: ExecuteToolRequest) -> dict[str, Any]:
@@ -425,7 +427,8 @@ def create_app(
         interface = state.get("interface")
         if not interface:
             raise HTTPException(status_code=503, detail="Server not ready")
-        return await interface.execute_tool(request.tool_name, request.parameters)
+        result = await interface.execute_tool(request.tool_name, request.parameters)
+        return cast(dict[str, Any], result)
 
     # ===== Convenience REST Endpoints =====
 
@@ -439,7 +442,7 @@ def create_app(
             "get_staging_queue",
             {"status": status, "limit": limit},
         )
-        return result
+        return cast(dict[str, Any], result)
 
     @app.get("/api/webhooks")
     async def list_webhooks() -> dict[str, Any]:
@@ -448,7 +451,7 @@ def create_app(
         if not interface:
             raise HTTPException(status_code=503, detail="Server not ready")
         result = await interface.execute_tool("list_webhooks", {})
-        return result
+        return cast(dict[str, Any], result)
 
     @app.post("/api/search")
     async def search(
@@ -464,7 +467,7 @@ def create_app(
             "search_for_session",
             {"session_id": session_id, "query": query, "limit": limit},
         )
-        return result
+        return cast(dict[str, Any], result)
 
     # ===== Curator Callback Endpoint =====
 
@@ -491,7 +494,10 @@ def create_app(
         status = decision_to_status.get(request.decision, "reviewed")
 
         # Build curator notes
-        curator_notes = f"{request.decision}: {request.reason} (confidence: {request.confidence:.2f})"
+        curator_notes = (
+            f"{request.decision}: {request.reason} "
+            f"(confidence: {request.confidence:.2f})"
+        )
         if request.similar_entries:
             curator_notes += f"\nSimilar entries: {', '.join(request.similar_entries)}"
 
@@ -533,6 +539,6 @@ def create_app(
             raise
         except Exception as e:
             logger.exception(f"Error processing curator decision for {request.entry_id}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail=str(e)) from e
 
     return app

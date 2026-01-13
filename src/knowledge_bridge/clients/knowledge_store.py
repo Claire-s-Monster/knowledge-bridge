@@ -118,7 +118,7 @@ class KnowledgeStoreClient:
             response = await client.get(f"{self.base_url}/health")
             if response.status_code == 200:
                 data = response.json()
-                return data.get("status") == "healthy"
+                return bool(data.get("status") == "healthy")
             return False
         except httpx.HTTPError as e:
             logger.warning(f"Knowledge-store health check failed: {e}")

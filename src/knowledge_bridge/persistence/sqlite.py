@@ -21,7 +21,7 @@ from typing import Any
 try:
     import aiosqlite
 except ImportError:
-    aiosqlite = None  # type: ignore[assignment]
+    aiosqlite = None  # type: ignore[assignment]  # noqa: F841
 
 from .base import DEFAULT_SQLITE_PATH, BaseDatabaseBackend, get_default_data_dir
 
@@ -286,7 +286,7 @@ class SQLiteBackend(BaseDatabaseBackend):
             (status, curator_notes, promoted_to, entry_id),
         )
         await self._conn.commit()
-        return cursor.rowcount > 0
+        return bool(cursor.rowcount > 0)
 
     # ===== Webhook Operations =====
 
@@ -380,7 +380,7 @@ class SQLiteBackend(BaseDatabaseBackend):
             "DELETE FROM webhooks WHERE id = ?", (webhook_id,)
         )
         await self._conn.commit()
-        return cursor.rowcount > 0
+        return bool(cursor.rowcount > 0)
 
     async def update_webhook_status(
         self,
@@ -416,7 +416,7 @@ class SQLiteBackend(BaseDatabaseBackend):
 
         cursor = await self._conn.execute(query, params)
         await self._conn.commit()
-        return cursor.rowcount > 0
+        return bool(cursor.rowcount > 0)
 
     # ===== Event Log Operations =====
 

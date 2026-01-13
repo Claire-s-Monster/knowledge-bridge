@@ -353,6 +353,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/b3/19/9e050c0dca8aba824d67cc0db69fb459c28d8cd3f6855b1405b3f29cc91d/ruff-0.14.10-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/79/0c/c05523fa3181fdf0c9c52a6ba91a23fbf3246cc095f26f6516f9c60e6771/virtualenv-20.35.4-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/a0/56/0cc15b8ff2613c1d5c3dc1f3f576ede1c43868c1bc2e5ccaa2d4bcd7974d/vulture-2.14-py2.py3-none-any.whl
       - pypi: ./
 packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2
@@ -1215,7 +1216,7 @@ packages:
 - pypi: ./
   name: knowledge-bridge
   version: 0.1.0
-  sha256: 633f824de4698916babe9e93ba662a569c3d99056adb8cae184f18e477e2ed4a
+  sha256: 5c4153f5d155c30c44469eb39997ac05802d23fc0d9b9a32da65a3555da019fe
   requires_dist:
   - pytest>=7.0.0 ; extra == 'dev'
   - pytest-asyncio>=0.21.0 ; extra == 'dev'
@@ -1224,6 +1225,7 @@ packages:
   - ruff>=0.1.0 ; extra == 'dev'
   - mypy>=1.5.0 ; extra == 'dev'
   - pre-commit>=3.0.0 ; extra == 'dev'
+  - vulture>=2.10 ; extra == 'dev'
   requires_python: '>=3.11'
   editable: true
 - conda: https://conda.anaconda.org/conda-forge/linux-64/ld_impl_linux-64-2.45-default_hbd61a6d_105.conda
@@ -2515,6 +2517,13 @@ packages:
   - pytest>=7.4 ; extra == 'test'
   - setuptools>=68 ; extra == 'test'
   - time-machine>=2.10 ; platform_python_implementation == 'CPython' and extra == 'test'
+  requires_python: '>=3.8'
+- pypi: https://files.pythonhosted.org/packages/a0/56/0cc15b8ff2613c1d5c3dc1f3f576ede1c43868c1bc2e5ccaa2d4bcd7974d/vulture-2.14-py2.py3-none-any.whl
+  name: vulture
+  version: '2.14'
+  sha256: d9a90dba89607489548a49d557f8bac8112bd25d3cbc8aeef23e860811bd5ed9
+  requires_dist:
+  - tomli>=1.1.0 ; python_full_version < '3.11'
   requires_python: '>=3.8'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/watchfiles-1.1.1-py314ha5689aa_0.conda
   sha256: fcec93ca26320764c55042fc56b772a88533ed01f1c713553c985b379e174d09
