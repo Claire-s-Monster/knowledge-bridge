@@ -43,13 +43,13 @@ All 6 phases implemented with 51 tests passing:
 | Retrieval | ✅ | search_for_session, prime_session |
 | Feedback | ✅ | report_outcome |
 | Webhooks | ✅ | register/unregister/list webhooks |
-| Testing | ✅ | 51 tests across 5 test files |
+| Testing | ✅ | 56 tests across 5 test files |
 
-## Tools (11)
+## Tools (12)
 
 | Category | Tools |
 |----------|-------|
-| **Promotion** | `promote_learning`, `batch_promote`, `get_staging_queue`, `get_staged_entry` |
+| **Promotion** | `promote_learning`, `batch_promote`, `get_staging_queue`, `get_staged_entry`, `approve_staged_entry` |
 | **Retrieval** | `search_for_session`, `prime_session` |
 | **Feedback** | `report_outcome` |
 | **Webhooks** | `register_webhook`, `unregister_webhook`, `list_webhooks` |

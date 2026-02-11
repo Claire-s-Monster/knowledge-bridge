@@ -1,6 +1,6 @@
 """Lean MCP interface for knowledge-bridge.
 
-Exposes 10 tools via 3-meta-tool pattern:
+Exposes 12 tools via 3-meta-tool pattern:
 - discover_tools(pattern) - List available tools
 - get_tool_spec(name) - Get schema for a tool
 - execute_tool(name, params) - Execute a tool
@@ -157,6 +157,30 @@ TOOL_SPECS: dict[str, ToolSpec] = {
         },
         examples=[
             {"entry_id": "kb-abc123"},
+        ],
+    ),
+    "approve_staged_entry": ToolSpec(
+        name="approve_staged_entry",
+        description="Approve a staged entry and promote it to knowledge-store",
+        category="promotion",
+        parameters={
+            "type": "object",
+            "properties": {
+                "entry_id": {
+                    "type": "string",
+                    "description": "The staged entry ID to approve",
+                },
+                "curator_notes": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Optional notes from curator about the approval",
+                },
+            },
+            "required": ["entry_id"],
+        },
+        examples=[
+            {"entry_id": "kb-abc123"},
+            {"entry_id": "kb-abc123", "curator_notes": "Verified pattern works for Python 3.11+"},
         ],
     ),
     # Retrieval tools
@@ -378,6 +402,7 @@ class LeanMCPInterface:
             "batch_promote": self._batch_promote,
             "get_staging_queue": self._get_staging_queue,
             "get_staged_entry": self._get_staged_entry,
+            "approve_staged_entry": self._approve_staged_entry,
             "search_for_session": self._search_for_session,
             "prime_session": self._prime_session,
             "report_outcome": self._report_outcome,
@@ -541,6 +566,18 @@ class LeanMCPInterface:
         if entry is None:
             return None
         return entry.model_dump()
+
+    async def _approve_staged_entry(
+        self,
+        entry_id: str,
+        curator_notes: str = "",
+    ) -> dict[str, Any]:
+        """Handle approve_staged_entry tool."""
+        result = await self.service.approve_staged_entry(
+            entry_id=entry_id,
+            curator_notes=curator_notes,
+        )
+        return result.model_dump()
 
     async def _search_for_session(
         self,

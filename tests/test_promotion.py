@@ -189,6 +189,99 @@ class TestGetStagingQueue:
         assert len(entries) == 2
 
 
+class TestApproveStagedEntry:
+    """Tests for approve_staged_entry tool - the missing link for searchability."""
+
+    @pytest.mark.asyncio
+    async def test_approve_staged_entry_success(
+        self,
+        service: KnowledgeBridgeService,
+    ) -> None:
+        """Test approving a staged entry promotes it to knowledge-store."""
+        # First, stage a learning
+        staged_result = await service.promote_learning(
+            source="direct",
+            content={"problem_pattern": "test error", "solution": "test fix"},
+            promotion_type="staged",
+        )
+        assert staged_result.success is True
+        entry_id = staged_result.entry_id
+
+        # Now approve it
+        approve_result = await service.approve_staged_entry(
+            entry_id=entry_id,
+            curator_notes="Verified as useful",
+        )
+
+        assert approve_result.success is True
+        assert approve_result.status == "promoted"
+        assert "knowledge-store" in approve_result.reason.lower()
+
+    @pytest.mark.asyncio
+    async def test_approve_nonexistent_entry(
+        self,
+        service: KnowledgeBridgeService,
+    ) -> None:
+        """Test approving a non-existent entry fails gracefully."""
+        result = await service.approve_staged_entry(
+            entry_id="kb-nonexistent",
+        )
+
+        assert result.success is False
+        assert result.status == "rejected"
+        assert "not found" in result.reason.lower()
+
+    @pytest.mark.asyncio
+    async def test_approve_already_promoted_entry(
+        self,
+        service: KnowledgeBridgeService,
+    ) -> None:
+        """Test approving an already promoted entry fails."""
+        # Stage and approve
+        staged = await service.promote_learning(
+            source="direct",
+            content={"problem_pattern": "test", "solution": "fix"},
+            promotion_type="staged",
+        )
+        entry_id = staged.entry_id
+        await service.approve_staged_entry(entry_id=entry_id)
+
+        # Try to approve again
+        result = await service.approve_staged_entry(entry_id=entry_id)
+
+        assert result.success is False
+        assert result.status == "rejected"
+        assert "already promoted" in result.reason.lower()
+
+    @pytest.mark.asyncio
+    async def test_approve_updates_staging_status(
+        self,
+        service: KnowledgeBridgeService,
+    ) -> None:
+        """Test that approval updates the staging entry status."""
+        # Stage a learning
+        staged = await service.promote_learning(
+            source="direct",
+            content={"problem_pattern": "test", "solution": "fix"},
+            promotion_type="staged",
+        )
+        entry_id = staged.entry_id
+
+        # Verify pending status
+        entry = await service.get_staged_entry(entry_id)
+        assert entry is not None
+        assert entry.status == "pending"
+
+        # Approve
+        await service.approve_staged_entry(entry_id=entry_id)
+
+        # Verify promoted status
+        entry = await service.get_staged_entry(entry_id)
+        assert entry is not None
+        assert entry.status == "promoted"
+        assert entry.promoted_to is not None
+
+
 class TestPromotionViaInterface:
     """Tests for promotion tools via lean interface."""
 
@@ -237,3 +330,30 @@ class TestPromotionViaInterface:
 
         assert result["status"] == "success"
         assert isinstance(result["result"], list)
+
+    @pytest.mark.asyncio
+    async def test_approve_staged_entry_via_interface(
+        self,
+        lean_interface: LeanMCPInterface,
+    ) -> None:
+        """Test approve_staged_entry through MCP interface."""
+        # First stage a learning
+        stage_result = await lean_interface.execute_tool(
+            "promote_learning",
+            {
+                "source": "direct",
+                "content": {"problem_pattern": "test", "solution": "fix"},
+                "promotion_type": "staged",
+            },
+        )
+        entry_id = stage_result["result"]["entry_id"]
+
+        # Now approve via interface
+        result = await lean_interface.execute_tool(
+            "approve_staged_entry",
+            {"entry_id": entry_id, "curator_notes": "Approved via interface test"},
+        )
+
+        assert result["status"] == "success"
+        assert result["result"]["success"] is True
+        assert result["result"]["status"] == "promoted"

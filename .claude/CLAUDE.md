@@ -38,7 +38,7 @@ session-intelligence (4002) <-> knowledge-bridge (4003) <-> UCKN (4004)
 | Phase 3: Retrieval Flow | ✅ COMPLETE | search_for_session, prime_session |
 | Phase 4: Feedback Loop | ✅ COMPLETE | report_outcome |
 | Phase 5: Webhook System | ✅ COMPLETE | register/unregister/list webhooks |
-| Phase 6: Testing | ✅ COMPLETE | 51 tests passing |
+| Phase 6: Testing | ✅ COMPLETE | 56 tests passing |
 
 ## Source Files (19)
 
@@ -65,7 +65,7 @@ src/
     │   └── emitter.py               # HTTP POST delivery
     ├── lean/
     │   ├── __init__.py
-    │   └── interface.py             # 10 MCP tools (598 lines)
+    │   └── interface.py             # 12 MCP tools
     └── transport/
         ├── __init__.py
         ├── http_server.py           # FastAPI server
@@ -78,20 +78,22 @@ src/
 tests/
 ├── __init__.py
 ├── conftest.py                      # MockDatabaseBackend + fixtures
-├── test_promotion.py                # 14 tests
+├── test_promotion.py                # 19 tests
 ├── test_retrieval.py                # 9 tests
 ├── test_feedback.py                 # 6 tests
 ├── test_webhooks.py                 # 9 tests
 └── test_interface.py                # 13 tests
 ```
 
-## Tools Implemented (10)
+## Tools Implemented (12)
 
 | Category | Tool | Status |
 |----------|------|--------|
 | Promotion | `promote_learning` | ✅ |
 | Promotion | `batch_promote` | ✅ |
 | Promotion | `get_staging_queue` | ✅ |
+| Promotion | `get_staged_entry` | ✅ |
+| Promotion | `approve_staged_entry` | ✅ |
 | Retrieval | `search_for_session` | ✅ |
 | Retrieval | `prime_session` | ✅ |
 | Feedback | `report_outcome` | ✅ |

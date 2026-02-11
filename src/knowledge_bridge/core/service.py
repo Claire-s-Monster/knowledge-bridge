@@ -319,6 +319,92 @@ class KnowledgeBridgeService:
             promoted_to=entry.get("promoted_to"),
         )
 
+    async def approve_staged_entry(
+        self,
+        entry_id: str,
+        curator_notes: str = "",
+    ) -> PromotionResult:
+        """Approve a staged entry and promote it to knowledge-store.
+
+        This is the missing link that moves content from staging to searchable.
+
+        Args:
+            entry_id: The staged entry ID to approve.
+            curator_notes: Optional notes from curator.
+
+        Returns:
+            PromotionResult with status and knowledge-store ID.
+        """
+        # Get the staged entry
+        entry = await self.database.get_staged_entry(entry_id)
+        if not entry:
+            return PromotionResult(
+                success=False,
+                entry_id=entry_id,
+                status="rejected",
+                reason=f"Staged entry {entry_id} not found",
+            )
+
+        # Check if already promoted
+        if entry.get("status") == "promoted":
+            return PromotionResult(
+                success=False,
+                entry_id=entry_id,
+                status="rejected",
+                reason=f"Entry {entry_id} already promoted to {entry.get('promoted_to')}",
+            )
+
+        # Get the content to promote
+        content = entry.get("content", {})
+        if not content:
+            return PromotionResult(
+                success=False,
+                entry_id=entry_id,
+                status="rejected",
+                reason=f"Entry {entry_id} has no content to promote",
+            )
+
+        # Promote to knowledge-store
+        result = await self.knowledge_store_client.promote(content)
+        uckn_id = result.get("id", "")
+
+        if result.get("status") == "error":
+            return PromotionResult(
+                success=False,
+                entry_id=entry_id,
+                status="rejected",
+                reason=f"Knowledge-store promotion failed: {result.get('error', 'unknown')}",
+            )
+
+        # Update staging entry status
+        await self.database.update_staged_entry_status(
+            entry_id=entry_id,
+            status="promoted",
+            promoted_to=uckn_id,
+            curator_notes=curator_notes,
+        )
+
+        # Emit promotion event
+        await self.webhook_emitter.emit(
+            EventType.LEARNING_PROMOTED,
+            {
+                "entry_id": entry_id,
+                "uckn_id": uckn_id,
+                "source": entry.get("source"),
+                "content": content,
+                "curator_notes": curator_notes,
+            },
+        )
+
+        logger.info(f"Approved staged entry {entry_id} -> knowledge-store {uckn_id}")
+
+        return PromotionResult(
+            success=True,
+            entry_id=uckn_id,
+            status="promoted",
+            reason=f"Approved and promoted to knowledge-store as {uckn_id}",
+        )
+
     # ===== Retrieval Flow =====
 
     async def search_for_session(
