@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [development, main]
+  pull_request:
+    branches: [development, main]
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      src: ${{ steps.filter.outputs.src }}
+      tests: ${{ steps.filter.outputs.tests }}
+      config: ${{ steps.filter.outputs.config }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            src:
+              - 'src/**'
+            tests:
+              - 'tests/**'
+            config:
+              - 'pyproject.toml'
+              - '.github/workflows/**'
+
+  hygiene:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.src == 'true' || needs.detect-changes.outputs.tests == 'true' || needs.detect-changes.outputs.config == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pavelzw/setup-pixi@v0.9.4
+        with:
+          cache: true
+          environments: dev
+      - name: Run linting
+        run: pixi run -e dev lint
+
+  quality:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.src == 'true' || needs.detect-changes.outputs.config == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pavelzw/setup-pixi@v0.9.4
+        with:
+          cache: true
+          environments: dev
+      - name: Type checking
+        run: pixi run -e dev type-check
+      - name: Dead code detection
+        run: pixi run -e dev dead-code
+        continue-on-error: true
+
+  test:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.src == 'true' || needs.detect-changes.outputs.tests == 'true' || needs.detect-changes.outputs.config == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pavelzw/setup-pixi@v0.9.4
+        with:
+          cache: true
+          environments: dev
+      - name: Run tests
+        run: pixi run -e dev test
+        env:
+          PYTHONPATH: src
+
+  ci-success:
+    needs: [detect-changes, hygiene, quality, test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check job results
+        run: |
+          if [ "${{ needs.hygiene.result }}" = "failure" ] || [ "${{ needs.quality.result }}" = "failure" ] || [ "${{ needs.test.result }}" = "failure" ]; then
+            echo "One or more required jobs failed"
+            exit 1
+          fi
+          if [ "${{ needs.hygiene.result }}" = "skipped" ] && [ "${{ needs.quality.result }}" = "skipped" ] && [ "${{ needs.test.result }}" = "skipped" ]; then
+            echo "All jobs were skipped - no changes detected"
+            exit 0
+          fi
+          echo "All required jobs passed"
