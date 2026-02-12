@@ -66,10 +66,23 @@ type-check = "mypy src/"
 dead-code = "vulture src/ --min-confidence 80"
 quality = { depends-on = ["lint", "type-check", "dead-code"] }
 check-all = { depends-on = ["test", "quality"] }
+# Build tasks
+build = "python -m build"
+security-scan = "bandit -r src/ -ll"
+
+[tool.pixi.feature.security.pypi-dependencies]
+bandit = ">=1.7.0"
+pip-audit = ">=2.6.0"
+
+[tool.pixi.feature.build.pypi-dependencies]
+build = ">=1.0.0"
+twine = ">=4.0.0"
 
 [tool.pixi.environments]
 default = { solve-group = "default" }
 dev = { features = ["dev"], solve-group = "default" }
+quality-extended = { features = ["dev", "security"], solve-group = "default" }
+quality-ci = { features = ["dev", "build"], solve-group = "default" }
 
 [tool.ruff]
 target-version = "py311"
