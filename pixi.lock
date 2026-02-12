@@ -1216,7 +1216,7 @@ packages:
 - pypi: ./
   name: knowledge-bridge
   version: 0.1.0
-  sha256: 5c4153f5d155c30c44469eb39997ac05802d23fc0d9b9a32da65a3555da019fe
+  sha256: 768eea89f22bcf5deaa7617d0223988bcbdf0a0bf2f6c3c87c6caf271e66029b
   requires_dist:
   - pytest>=7.0.0 ; extra == 'dev'
   - pytest-asyncio>=0.21.0 ; extra == 'dev'

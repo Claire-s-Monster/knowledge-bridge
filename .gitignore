@@ -50,3 +50,10 @@ knowledge_bridge.db
 # OS
 .DS_Store
 Thumbs.db
+
+# Claude Code Agent local files
+.claude/
+.mcp.json
+.env
+logs/
+coverage.json
