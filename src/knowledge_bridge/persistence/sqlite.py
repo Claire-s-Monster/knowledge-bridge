@@ -412,7 +412,8 @@ class SQLiteBackend(BaseDatabaseBackend):
             return False
 
         params.append(webhook_id)
-        query = f"UPDATE webhooks SET {', '.join(updates)} WHERE id = ?"
+        # Column names are from internal logic, not user input
+        query = f"UPDATE webhooks SET {', '.join(updates)} WHERE id = ?"  # nosec B608
 
         cursor = await self._conn.execute(query, params)
         await self._conn.commit()
@@ -605,7 +606,7 @@ class SQLiteBackend(BaseDatabaseBackend):
         tables = ["staging_queue", "webhooks", "event_log", "feedback", "search_log"]
         for table in tables:
             async with self._conn.execute(
-                f"SELECT COUNT(*) as count FROM {table}"  # noqa: S608
+                f"SELECT COUNT(*) as count FROM {table}"  # noqa: S608  # nosec B608
             ) as cursor:
                 row = await cursor.fetchone()
                 stats[f"{table}_count"] = row["count"] if row else 0

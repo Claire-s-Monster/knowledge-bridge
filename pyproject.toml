@@ -121,3 +121,5 @@ paths = ["src/"]
 exclude = ["tests/", ".pixi/"]
 # Whitelist common patterns that appear unused but are used dynamically
 make_whitelist = true
+
+# Security scan trigger: 2026-02-14
