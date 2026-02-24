@@ -96,15 +96,24 @@ class KnowledgeStoreClient:
         content = result.get("result", {}).get("content", [])
         if content and len(content) > 0:
             text = content[0].get("text", "{}")
-            # The response is a Python repr string, need to eval it safely
-            # Actually it's a dict-like string, let's parse it
-            import ast
+            # The response is a JSON string, parse it
+            import json
 
             try:
-                return cast(dict[str, Any], ast.literal_eval(text))
-            except (ValueError, SyntaxError):
-                return {"raw": text}
+                parsed = json.loads(text)
+                logger.debug(f"Parsed response: {parsed}")
+                return cast(dict[str, Any], parsed)
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse JSON response: {e}, text: {text}")
+                # Fallback to ast.literal_eval for Python repr strings
+                import ast
+                try:
+                    return cast(dict[str, Any], ast.literal_eval(text))
+                except (ValueError, SyntaxError):
+                    logger.error(f"Failed to parse as Python repr: {text}")
+                    return {"raw": text, "error": "Failed to parse response"}
 
+        logger.warning("Empty response content from knowledge-store")
         return {}
 
     async def health_check(self) -> bool:
@@ -211,10 +220,15 @@ class KnowledgeStoreClient:
             if "source_type" in entry:
                 arguments["source_type"] = entry["source_type"]
 
+            logger.debug(f"Calling add_entry with arguments: {arguments}")
             result = await self._call_tool("add_entry", arguments)
+            logger.debug(f"add_entry result: {result}")
+
+            entry_id = result.get("entry_id", result.get("id", ""))
+            logger.info(f"Promotion result - entry_id: {entry_id}, status: promoted")
 
             return {
-                "id": result.get("entry_id", result.get("id", "")),
+                "id": entry_id,
                 "status": "promoted",
                 "message": "Entry added to knowledge-store",
             }
