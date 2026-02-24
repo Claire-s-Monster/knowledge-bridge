@@ -87,16 +87,36 @@ class MockUCKNClient:
         """Promote entry to UCKN (mock implementation).
 
         Args:
-            entry: Entry to promote.
+            entry: Entry to promote with problem_pattern/problem/pattern field.
 
         Returns:
             Mock promotion result.
         """
+        # Add field normalization to match KnowledgeStoreClient behavior
+        # Handle various field names: problem_pattern, problem, pattern
+        problem = (
+            entry.get("problem_pattern")
+            or entry.get("problem")
+            or entry.get("pattern")
+            or ""
+        )
+
+        # Normalize entry before storing
+        normalized_entry = {
+            "problem_pattern": problem,
+            "solution": entry.get("solution", ""),
+            **{
+                k: v
+                for k, v in entry.items()
+                if k not in ["problem", "pattern", "problem_pattern", "solution"]
+            },
+        }
+
         entry_id = f"uckn-mock-{uuid4().hex[:8]}"
         logger.debug(f"Mock UCKN promotion: {entry_id}")
 
-        # Store in mock entries
-        self._mock_entries[entry_id] = entry
+        # Store normalized entry
+        self._mock_entries[entry_id] = normalized_entry
 
         return {
             "id": entry_id,
