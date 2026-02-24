@@ -185,9 +185,17 @@ class KnowledgeStoreClient:
             Promotion result with entry ID and status.
         """
         try:
-            # Map entry fields to add_entry parameters
+            # Map entry fields to add_entry parameters with field name normalization
+            # Handle various field names: problem_pattern, problem, pattern
+            problem = (
+                entry.get("problem_pattern")
+                or entry.get("problem")
+                or entry.get("pattern")
+                or ""
+            )
+
             arguments: dict[str, Any] = {
-                "problem_pattern": entry.get("problem_pattern", ""),
+                "problem_pattern": problem,
                 "solution": entry.get("solution", ""),
             }
 
@@ -206,7 +214,7 @@ class KnowledgeStoreClient:
             result = await self._call_tool("add_entry", arguments)
 
             return {
-                "id": result.get("id", result.get("entry_id", "")),
+                "id": result.get("entry_id", result.get("id", "")),
                 "status": "promoted",
                 "message": "Entry added to knowledge-store",
             }
