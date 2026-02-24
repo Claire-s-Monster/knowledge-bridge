@@ -53,10 +53,10 @@ class KnowledgeStoreClient:
         tool_name: str,
         arguments: dict[str, Any],
     ) -> dict[str, Any]:
-        """Call an MCP tool via JSON-RPC.
+        """Call an MCP tool via JSON-RPC using 3-meta-tool pattern.
 
         Args:
-            tool_name: Name of the tool to call.
+            tool_name: Name of the tool to call (e.g., "add_entry", "search").
             arguments: Tool arguments.
 
         Returns:
@@ -69,13 +69,17 @@ class KnowledgeStoreClient:
         client = await self._get_client()
         request_id = str(uuid4())[:8]
 
+        # Use 3-meta-tool pattern: call execute_tool with tool_name and parameters
         payload = {
             "jsonrpc": "2.0",
             "id": request_id,
             "method": "tools/call",
             "params": {
-                "name": tool_name,
-                "arguments": arguments,
+                "name": "execute_tool",
+                "arguments": {
+                    "tool_name": tool_name,
+                    "parameters": arguments,
+                },
             },
         }
 
