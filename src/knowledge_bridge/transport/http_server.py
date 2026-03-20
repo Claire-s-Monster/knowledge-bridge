@@ -342,6 +342,12 @@ def create_app(
             elif tool_name == "execute_tool":
                 target = arguments.get("tool_name", "")
                 tool_params = arguments.get("parameters", {})
+                # Coerce JSON string to dict (MCP proxy serialization)
+                if isinstance(tool_params, str):
+                    try:
+                        tool_params = json.loads(tool_params)
+                    except (json.JSONDecodeError, TypeError):
+                        tool_params = {}
                 tool_result = await interface.execute_tool(target, tool_params)
             else:
                 tool_result = {"error": f"Unknown tool: {tool_name}"}
