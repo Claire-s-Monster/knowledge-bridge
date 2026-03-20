@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [development, main]
 
-# Required permissions for reusable workflow (even when release is disabled)
+# Required permissions for reusable workflow
 permissions:
   contents: write
   id-token: write
@@ -14,13 +14,12 @@ permissions:
 jobs:
   ci:
     name: "CI Pipeline"
-    uses: Claire-s-Monster/ci-framework/.github/workflows/reusable-ci.yml@v2.4.1
+    uses: Claire-s-Monster/ci-framework/.github/workflows/reusable-ci.yml@v2.5.1
     with:
       pixi-environment: 'dev'
       python-versions: '["3.11", "3.12"]'
       os-matrix: '["ubuntu-latest"]'
       enable-performance: false
-      enable-release: false
       enable-hygiene-check: true
     secrets: inherit
 
