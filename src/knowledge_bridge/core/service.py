@@ -56,6 +56,41 @@ class KnowledgeBridgeService:
         self.knowledge_store_client = knowledge_store_client
         self.webhook_emitter = webhook_emitter
 
+    def _validate_staging_entry(self, content: dict[str, Any]) -> tuple[bool, str]:
+        """Validate that entry has required fields for promotion.
+
+        Args:
+            content: Entry content to validate.
+
+        Returns:
+            Tuple of (is_valid, error_message).
+        """
+        # Check for problem/pattern field
+        has_problem = any(
+            key in content for key in ["problem", "problem_pattern", "pattern"]
+        )
+        if not has_problem:
+            return False, "Missing required field: problem, problem_pattern, or pattern"
+
+        # Check for solution field
+        if "solution" not in content or not content.get("solution"):
+            return False, "Missing required field: solution"
+
+        # Validate non-empty strings
+        problem = (
+            content.get("problem")
+            or content.get("problem_pattern")
+            or content.get("pattern")
+        )
+        if not isinstance(problem, str) or not problem.strip():
+            return False, "Problem field must be a non-empty string"
+
+        solution = content.get("solution")
+        if not isinstance(solution, str) or not solution.strip():
+            return False, "Solution field must be a non-empty string"
+
+        return True, ""
+
     # ===== Promotion Flow =====
 
     async def promote_learning(
@@ -109,6 +144,16 @@ class KnowledgeBridgeService:
                 entry_id="",
                 status="rejected",
                 reason=f"Unknown source: {source}",
+            )
+
+        # Validate entry content
+        is_valid, error_msg = self._validate_staging_entry(content)
+        if not is_valid:
+            return PromotionResult(
+                success=False,
+                entry_id="",
+                status="rejected",
+                reason=f"Invalid entry: {error_msg}",
             )
 
         # Generate entry ID

@@ -1730,7 +1730,7 @@ packages:
 - pypi: ./
   name: knowledge-bridge
   version: 0.1.0
-  sha256: 603d724b21cb0b60557a283817ed93b7f66d8926eec6647824572f4cb26ed573
+  sha256: 3d8fc9f8ddca1d7c455410d73beadf0dcd5fb3b6f61d9fb9be1137d3ca9f4d63
   requires_dist:
   - pytest>=7.0.0 ; extra == 'dev'
   - pytest-asyncio>=0.21.0 ; extra == 'dev'

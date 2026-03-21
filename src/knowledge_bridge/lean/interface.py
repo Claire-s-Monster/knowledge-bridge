@@ -8,6 +8,7 @@ Exposes 12 tools via 3-meta-tool pattern:
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Callable, Coroutine
 from typing import Any
@@ -489,6 +490,23 @@ class LeanMCPInterface:
                 "tool": tool_name,
                 "status": "error",
                 "error": f"Unknown tool: {tool_name}",
+            }
+
+        # Coerce JSON string parameters to dict (MCP proxy serialization)
+        if isinstance(parameters, str):
+            try:
+                parameters = json.loads(parameters)
+            except (json.JSONDecodeError, TypeError) as e:
+                return {
+                    "tool": tool_name,
+                    "status": "error",
+                    "error": f"Invalid JSON parameters string: {e}",
+                }
+        if not isinstance(parameters, dict):
+            return {
+                "tool": tool_name,
+                "status": "error",
+                "error": f"Parameters must be a dict, got {type(parameters).__name__}",
             }
 
         try:

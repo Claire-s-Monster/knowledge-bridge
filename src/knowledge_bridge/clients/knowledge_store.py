@@ -53,10 +53,10 @@ class KnowledgeStoreClient:
         tool_name: str,
         arguments: dict[str, Any],
     ) -> dict[str, Any]:
-        """Call an MCP tool via JSON-RPC.
+        """Call an MCP tool via JSON-RPC using 3-meta-tool pattern.
 
         Args:
-            tool_name: Name of the tool to call.
+            tool_name: Name of the tool to call (e.g., "add_entry", "search").
             arguments: Tool arguments.
 
         Returns:
@@ -69,13 +69,17 @@ class KnowledgeStoreClient:
         client = await self._get_client()
         request_id = str(uuid4())[:8]
 
+        # Use 3-meta-tool pattern: call execute_tool with tool_name and parameters
         payload = {
             "jsonrpc": "2.0",
             "id": request_id,
             "method": "tools/call",
             "params": {
-                "name": tool_name,
-                "arguments": arguments,
+                "name": "execute_tool",
+                "arguments": {
+                    "tool_name": tool_name,
+                    "parameters": arguments,
+                },
             },
         }
 
@@ -96,15 +100,24 @@ class KnowledgeStoreClient:
         content = result.get("result", {}).get("content", [])
         if content and len(content) > 0:
             text = content[0].get("text", "{}")
-            # The response is a Python repr string, need to eval it safely
-            # Actually it's a dict-like string, let's parse it
-            import ast
+            # The response is a JSON string, parse it
+            import json
 
             try:
-                return cast(dict[str, Any], ast.literal_eval(text))
-            except (ValueError, SyntaxError):
-                return {"raw": text}
+                parsed = json.loads(text)
+                logger.debug(f"Parsed response: {parsed}")
+                return cast(dict[str, Any], parsed)
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse JSON response: {e}, text: {text}")
+                # Fallback to ast.literal_eval for Python repr strings
+                import ast
+                try:
+                    return cast(dict[str, Any], ast.literal_eval(text))
+                except (ValueError, SyntaxError):
+                    logger.error(f"Failed to parse as Python repr: {text}")
+                    return {"raw": text, "error": "Failed to parse response"}
 
+        logger.warning("Empty response content from knowledge-store")
         return {}
 
     async def health_check(self) -> bool:
@@ -185,9 +198,17 @@ class KnowledgeStoreClient:
             Promotion result with entry ID and status.
         """
         try:
-            # Map entry fields to add_entry parameters
+            # Map entry fields to add_entry parameters with field name normalization
+            # Handle various field names: problem_pattern, problem, pattern
+            problem = (
+                entry.get("problem_pattern")
+                or entry.get("problem")
+                or entry.get("pattern")
+                or ""
+            )
+
             arguments: dict[str, Any] = {
-                "problem_pattern": entry.get("problem_pattern", ""),
+                "problem_pattern": problem,
                 "solution": entry.get("solution", ""),
             }
 
@@ -203,10 +224,15 @@ class KnowledgeStoreClient:
             if "source_type" in entry:
                 arguments["source_type"] = entry["source_type"]
 
+            logger.debug(f"Calling add_entry with arguments: {arguments}")
             result = await self._call_tool("add_entry", arguments)
+            logger.debug(f"add_entry result: {result}")
+
+            entry_id = result.get("entry_id", result.get("id", ""))
+            logger.info(f"Promotion result - entry_id: {entry_id}, status: promoted")
 
             return {
-                "id": result.get("id", result.get("entry_id", "")),
+                "id": entry_id,
                 "status": "promoted",
                 "message": "Entry added to knowledge-store",
             }

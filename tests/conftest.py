@@ -208,12 +208,23 @@ def mock_session_client() -> SessionIntelligenceClient:
     client.health_check = AsyncMock(return_value=True)
     client.get_learning = AsyncMock(return_value={
         "id": "learn-test",
-        "content": "Test learning",
+        "problem": "Test problem pattern",
+        "solution": "Test solution",
         "confidence": 0.9,
     })
     client.get_session_learnings = AsyncMock(return_value=[
-        {"id": "learn-1", "content": "Learning 1", "confidence": 0.9},
-        {"id": "learn-2", "content": "Learning 2", "confidence": 0.6},
+        {
+            "id": "learn-1",
+            "problem": "Learning 1 problem",
+            "solution": "Learning 1 solution",
+            "confidence": 0.9,
+        },
+        {
+            "id": "learn-2",
+            "problem": "Learning 2 problem",
+            "solution": "Learning 2 solution",
+            "confidence": 0.6,
+        },
     ])
     client.get_session_data = AsyncMock(return_value={
         "session_id": "test-session",
@@ -226,7 +237,7 @@ def mock_session_client() -> SessionIntelligenceClient:
 
 
 @pytest.fixture
-def mock_knowledge_store_client() -> MockUCKNClient:
+def mock_knowledge_store_client():
     """Create mock knowledge-store client (using MockUCKNClient for testing)."""
     return MockUCKNClient()
 
@@ -244,7 +255,7 @@ def mock_webhook_emitter(mock_database: MockDatabaseBackend) -> WebhookEmitter:
 async def service(
     mock_database_async: MockDatabaseBackend,
     mock_session_client: SessionIntelligenceClient,
-    mock_knowledge_store_client: MockUCKNClient,
+    mock_knowledge_store_client,
 ) -> AsyncGenerator[KnowledgeBridgeService, None]:
     """Create service with mock dependencies."""
     emitter = WebhookEmitter(database=mock_database_async)

@@ -121,3 +121,20 @@ paths = ["src/"]
 exclude = ["tests/", ".pixi/"]
 # Whitelist common patterns that appear unused but are used dynamically
 make_whitelist = true
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["*/tests/*", "*/test_*.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+skips = ["B101"]
