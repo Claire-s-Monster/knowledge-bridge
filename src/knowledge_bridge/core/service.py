@@ -105,7 +105,8 @@ class KnowledgeBridgeService:
         Args:
             source: Where the learning comes from.
             learning_id: If from session-intelligence, the learning ID.
-            content: If direct, the learning content.
+            content: The learning content. Required for direct; for session-intelligence,
+                skips re-fetching the learning by ID.
             promotion_type: Whether to promote immediately or stage for review.
 
         Returns:
@@ -121,15 +122,16 @@ class KnowledgeBridgeService:
                     reason="learning_id required for session-intelligence source",
                 )
 
-            learning = await self.session_client.get_learning(learning_id)
-            if not learning:
-                return PromotionResult(
-                    success=False,
-                    entry_id="",
-                    status="rejected",
-                    reason=f"Learning {learning_id} not found in session-intelligence",
-                )
-            content = learning
+            if content is None:
+                learning = await self.session_client.get_learning(learning_id)
+                if not learning:
+                    return PromotionResult(
+                        success=False,
+                        entry_id="",
+                        status="rejected",
+                        reason=f"Learning {learning_id} not found in session-intelligence",
+                    )
+                content = learning
         elif source == "direct":
             if not content:
                 return PromotionResult(
@@ -287,6 +289,7 @@ class KnowledgeBridgeService:
             result = await self.promote_learning(
                 source="session-intelligence",
                 learning_id=learning.get("id"),
+                content=learning,
                 promotion_type=promotion_type,
             )
             results.append(result)
