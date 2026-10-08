@@ -157,9 +157,7 @@ class FakeSessionIntelligence:
         session_id = request.headers.get(SESSION_HEADER)
         if session_id is None:
             return self._rpc_error(400, req_id, "Missing MCP-Session-Id")
-        if session_id not in self.sessions or (
-            self.reject_all_sessions and method == "tools/call"
-        ):
+        if session_id not in self.sessions or (self.reject_all_sessions and method == "tools/call"):
             return self._rpc_error(404, req_id, "Session not found")
 
         if method == "notifications/initialized":

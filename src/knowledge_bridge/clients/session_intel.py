@@ -107,9 +107,7 @@ class SessionIntelligenceClient:
 
         session_id: str | None = response.headers.get(SESSION_HEADER)
         if not session_id:
-            raise ValueError(
-                f"session-intelligence returned no {SESSION_HEADER} header"
-            )
+            raise ValueError(f"session-intelligence returned no {SESSION_HEADER} header")
 
         notified = await client.post(
             self._mcp_url,
@@ -142,15 +140,10 @@ class SessionIntelligenceClient:
         """
         client = await self._get_client()
         session_id = await self._ensure_session()
-        response = await client.post(
-            self._mcp_url, json=payload, headers=self._headers(session_id)
-        )
+        response = await client.post(self._mcp_url, json=payload, headers=self._headers(session_id))
 
         if response.status_code == 404:
-            logger.info(
-                f"session-intelligence dropped session {session_id}; "
-                "re-initializing"
-            )
+            logger.info(f"session-intelligence dropped session {session_id}; re-initializing")
             session_id = await self._ensure_session(stale=session_id)
             response = await client.post(
                 self._mcp_url, json=payload, headers=self._headers(session_id)
@@ -216,11 +209,7 @@ class SessionIntelligenceClient:
         # execute_tool wraps results as {"tool", "status", "result"}. Unknown
         # tools come back as {"error", "available_tools"} with no status.
         if not isinstance(envelope, dict) or envelope.get("status") != "success":
-            error = (
-                envelope.get("error", envelope)
-                if isinstance(envelope, dict)
-                else envelope
-            )
+            error = envelope.get("error", envelope) if isinstance(envelope, dict) else envelope
             raise ValueError(f"{tool_name} failed: {error}")
 
         logger.debug(f"Parsed {tool_name} result: {envelope.get('result')}")
@@ -363,13 +352,9 @@ class SessionIntelligenceClient:
 
         for data_type in data_types:
             if data_type == "learnings":
-                result["learnings"] = await self.get_session_learnings(
-                    session_id
-                )
+                result["learnings"] = await self.get_session_learnings(session_id)
             elif data_type == "decisions":
-                result["decisions"] = await self.get_session_decisions(
-                    session_id
-                )
+                result["decisions"] = await self.get_session_decisions(session_id)
             elif data_type == "notes":
                 result["notes"] = await self.get_session_notes(session_id)
 
@@ -393,11 +378,7 @@ class SessionIntelligenceClient:
                     "limit": 1,
                 },
             )
-            results = (
-                _list_of_dicts(result.get("results"))
-                if isinstance(result, dict)
-                else []
-            )
+            results = _list_of_dicts(result.get("results")) if isinstance(result, dict) else []
             return results[0] if results else None
         except (httpx.HTTPError, ValueError) as e:
             logger.error(f"Error fetching learning {learning_id}: {e}")
