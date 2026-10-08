@@ -135,6 +135,47 @@ class TestBatchPromote:
         assert result.promoted_immediately == 0
         assert result.staged_for_review == 0
 
+    @pytest.mark.asyncio
+    async def test_batch_promote_uses_fetched_learnings_without_refetch(
+        self,
+        service: KnowledgeBridgeService,
+        mock_session_client,
+    ) -> None:
+        """Test batch promote passes fetched learnings on instead of re-fetching them."""
+        await service.batch_promote("test-session")
+
+        mock_session_client.get_learning.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_batch_promote_stages_session_intelligence_learning(
+        self,
+        service: KnowledgeBridgeService,
+        mock_session_client,
+    ) -> None:
+        """Test batch promote accepts a learning shaped like the client returns."""
+        mock_session_client.get_session_learnings.return_value = [
+            {
+                "problem": "Formatting or lint checks in knowledge-bridge",
+                "solution": "knowledge-bridge: black is the formatter; ruff is lint-only.",
+                "id": "learn_88866055f6d6",
+                "category": "pattern",
+                "trigger_context": "Formatting or lint checks in knowledge-bridge",
+                "learning_content": "knowledge-bridge: black is the formatter; ruff is lint-only.",
+                "project_name": "knowledge-bridge",
+                "source_session_id": "949b45a9-9b8a-44ee-b7bb-d203d5533da9",
+                "success_count": 1,
+                "failure_count": 0,
+                "created_at": "2026-10-08T16:01:45.261204+00:00",
+                "last_used": "2026-10-08T16:01:45.261204+00:00",
+            }
+        ]
+
+        result = await service.batch_promote("test-session")
+
+        assert result.total_learnings == 1
+        assert result.rejected == 0
+        assert result.promoted_immediately + result.staged_for_review == 1
+
 
 class TestGetStagingQueue:
     """Tests for get_staging_queue tool."""

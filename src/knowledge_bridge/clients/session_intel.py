@@ -25,12 +25,32 @@ SESSION_HEADER = "MCP-Session-Id"
 MCP_PROTOCOL_VERSION = "2024-11-05"
 CLIENT_INFO = {"name": "knowledge-bridge", "version": "0.1.0"}
 
+# session-intelligence has no per-session filter for learnings or notebooks, so
+# the client queries the session's project and filters by session. Keep the
+# windows wide so a project's older entries are not cut off.
+RECALL_LIMIT = 500
+RECALL_DAYS = 3650
+NOTEBOOK_LIMIT = 500
+
 
 def _list_of_dicts(value: Any) -> list[dict[str, Any]]:
     """Return value if it is a list, else an empty list."""
     if isinstance(value, list):
         return cast(list[dict[str, Any]], value)
     return []
+
+
+def _as_learning(record: dict[str, Any]) -> dict[str, Any]:
+    """Add the problem/solution fields knowledge-bridge validates against.
+
+    session-intelligence stores a learning as trigger_context (when it applies)
+    and learning_content (what to do). Keys already on the record win.
+    """
+    return {
+        "problem": record.get("trigger_context"),
+        "solution": record.get("learning_content"),
+        **record,
+    }
 
 
 class SessionIntelligenceClient:
@@ -240,7 +260,6 @@ class SessionIntelligenceClient:
                 {
                     "session_id": session_id,
                     "dashboard_type": "overview",
-                    "export_format": "json",
                 },
             )
             if isinstance(result, dict):
@@ -250,30 +269,45 @@ class SessionIntelligenceClient:
             logger.error(f"Error fetching session {session_id}: {e}")
             return None
 
+    async def _project_name(self, session_id: str) -> str | None:
+        """Return the project a session belongs to, from its overview dashboard."""
+        session = await self.get_session(session_id)
+        metrics = session.get("metrics") if session else None
+        project_name = metrics.get("project_name") if isinstance(metrics, dict) else None
+        return project_name if isinstance(project_name, str) and project_name else None
+
     async def get_session_learnings(
         self,
         session_id: str,
     ) -> list[dict[str, Any]]:
-        """Get learnings for a session via search.
+        """Get the learnings logged during a session.
+
+        Recalls the session's project and keeps learnings whose
+        source_session_id matches.
 
         Args:
             session_id: The session ID.
 
         Returns:
-            List of search hits.
+            List of learnings, with problem/solution fields added.
         """
+        project_name = await self._project_name(session_id)
+        if project_name is None:
+            logger.warning(f"No project found for session {session_id}; no learnings returned")
+            return []
+
         try:
             result = await self._call_tool(
-                "session_search",
+                "session_recall",
                 {
-                    "query": session_id,
-                    "search_type": "fulltext",
-                    "limit": 50,
+                    "project_name": project_name,
+                    "include": ["learnings"],
+                    "limit": RECALL_LIMIT,
+                    "days": RECALL_DAYS,
                 },
             )
-            if isinstance(result, dict):
-                return _list_of_dicts(result.get("results"))
-            return []
+            records = _list_of_dicts(result.get("learnings")) if isinstance(result, dict) else []
+            return [_as_learning(r) for r in records if r.get("source_session_id") == session_id]
         except (httpx.HTTPError, ValueError) as e:
             logger.error(f"Error fetching learnings for {session_id}: {e}")
             return []
@@ -296,7 +330,6 @@ class SessionIntelligenceClient:
                 {
                     "session_id": session_id,
                     "dashboard_type": "decisions",
-                    "export_format": "json",
                 },
             )
             if isinstance(result, dict):
@@ -312,21 +345,29 @@ class SessionIntelligenceClient:
         self,
         session_id: str,
     ) -> list[dict[str, Any]]:
-        """Get notes/notebooks for a session.
+        """Get the notebooks written during a session.
+
+        Queries the session's project and keeps notebooks whose session_id
+        matches.
 
         Args:
             session_id: The session ID.
 
         Returns:
-            List of notes.
+            List of notebook summaries.
         """
+        project_name = await self._project_name(session_id)
+        if project_name is None:
+            logger.warning(f"No project found for session {session_id}; no notes returned")
+            return []
+
         try:
             # session_query_notebooks returns a bare list.
             result = await self._call_tool(
                 "session_query_notebooks",
-                {"limit": 50},
+                {"project_name": project_name, "limit": NOTEBOOK_LIMIT},
             )
-            return _list_of_dicts(result)
+            return [n for n in _list_of_dicts(result) if n.get("session_id") == session_id]
         except (httpx.HTTPError, ValueError) as e:
             logger.error(f"Error fetching notes for {session_id}: {e}")
             return []
@@ -370,6 +411,8 @@ class SessionIntelligenceClient:
             Learning data if found, None otherwise.
         """
         try:
+            # TODO(session-intelligence#207): no tool fetches a learning by ID.
+            # This full-text search returns a search hit, not the learning record.
             result = await self._call_tool(
                 "session_search",
                 {
