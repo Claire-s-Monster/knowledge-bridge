@@ -2,10 +2,16 @@
 
 Uses JSON-RPC over HTTP to call MCP tools on the session-intelligence server.
 Follows the same 3-meta-tool pattern as KnowledgeStoreClient.
+
+session-intelligence rejects every non-``initialize`` POST that lacks an
+``MCP-Session-Id`` header (400) and forgets session IDs when it restarts (404).
+The client therefore initializes lazily, sends the header on every request,
+and on a 404 initializes again once before retrying.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import Any, cast
@@ -14,6 +20,17 @@ from uuid import uuid4
 import httpx
 
 logger = logging.getLogger(__name__)
+
+SESSION_HEADER = "MCP-Session-Id"
+MCP_PROTOCOL_VERSION = "2024-11-05"
+CLIENT_INFO = {"name": "knowledge-bridge", "version": "0.1.0"}
+
+
+def _list_of_dicts(value: Any) -> list[dict[str, Any]]:
+    """Return value if it is a list, else an empty list."""
+    if isinstance(value, list):
+        return cast(list[dict[str, Any]], value)
+    return []
 
 
 class SessionIntelligenceClient:
@@ -37,6 +54,12 @@ class SessionIntelligenceClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self._client: httpx.AsyncClient | None = None
+        self._session_id: str | None = None
+        self._session_lock = asyncio.Lock()
+
+    @property
+    def _mcp_url(self) -> str:
+        return f"{self.base_url}/mcp"
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create HTTP client."""
@@ -45,16 +68,102 @@ class SessionIntelligenceClient:
         return self._client
 
     async def close(self) -> None:
-        """Close HTTP client."""
+        """Close HTTP client and forget the MCP session."""
         if self._client:
             await self._client.aclose()
             self._client = None
+        self._session_id = None
+
+    @staticmethod
+    def _headers(session_id: str | None = None) -> dict[str, str]:
+        headers = {"Content-Type": "application/json"}
+        if session_id:
+            headers[SESSION_HEADER] = session_id
+        return headers
+
+    async def _initialize(self) -> str:
+        """Open an MCP session and return its ID.
+
+        Raises:
+            httpx.HTTPError: On HTTP errors.
+            ValueError: If the server returns no session ID.
+        """
+        client = await self._get_client()
+        response = await client.post(
+            self._mcp_url,
+            json={
+                "jsonrpc": "2.0",
+                "id": str(uuid4())[:8],
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": MCP_PROTOCOL_VERSION,
+                    "capabilities": {},
+                    "clientInfo": CLIENT_INFO,
+                },
+            },
+            headers=self._headers(),
+        )
+        response.raise_for_status()
+
+        session_id: str | None = response.headers.get(SESSION_HEADER)
+        if not session_id:
+            raise ValueError(
+                f"session-intelligence returned no {SESSION_HEADER} header"
+            )
+
+        notified = await client.post(
+            self._mcp_url,
+            json={"jsonrpc": "2.0", "method": "notifications/initialized"},
+            headers=self._headers(session_id),
+        )
+        notified.raise_for_status()
+
+        logger.info(f"Opened session-intelligence MCP session {session_id}")
+        return session_id
+
+    async def _ensure_session(self, stale: str | None = None) -> str:
+        """Return the current session ID, initializing if needed.
+
+        Args:
+            stale: A session ID the server rejected. If it is still the
+                current one, a new session is opened. Concurrent callers that
+                saw the same stale ID share one re-initialization.
+        """
+        async with self._session_lock:
+            if self._session_id is None or self._session_id == stale:
+                self._session_id = await self._initialize()
+            return self._session_id
+
+    async def _post_rpc(self, payload: dict[str, Any]) -> httpx.Response:
+        """POST a JSON-RPC request inside the MCP session.
+
+        Re-initializes and retries exactly once if the server no longer
+        knows the session (404).
+        """
+        client = await self._get_client()
+        session_id = await self._ensure_session()
+        response = await client.post(
+            self._mcp_url, json=payload, headers=self._headers(session_id)
+        )
+
+        if response.status_code == 404:
+            logger.info(
+                f"session-intelligence dropped session {session_id}; "
+                "re-initializing"
+            )
+            session_id = await self._ensure_session(stale=session_id)
+            response = await client.post(
+                self._mcp_url, json=payload, headers=self._headers(session_id)
+            )
+
+        response.raise_for_status()
+        return response
 
     async def _call_tool(
         self,
         tool_name: str,
         arguments: dict[str, Any],
-    ) -> dict[str, Any]:
+    ) -> Any:
         """Call an MCP tool via JSON-RPC using 3-meta-tool pattern.
 
         Args:
@@ -62,34 +171,28 @@ class SessionIntelligenceClient:
             arguments: Tool arguments.
 
         Returns:
-            Tool result as dict.
+            The tool's ``result`` value from the execute_tool envelope
+            (a dict or a list, depending on the tool).
 
         Raises:
             httpx.HTTPError: On HTTP errors.
-            ValueError: On JSON-RPC errors.
+            ValueError: On JSON-RPC errors, unparseable responses, or a
+                non-success execute_tool envelope.
         """
-        client = await self._get_client()
-        request_id = str(uuid4())[:8]
-
-        payload = {
-            "jsonrpc": "2.0",
-            "id": request_id,
-            "method": "tools/call",
-            "params": {
-                "name": "execute_tool",
-                "arguments": {
-                    "tool_name": tool_name,
-                    "parameters": arguments,
+        response = await self._post_rpc(
+            {
+                "jsonrpc": "2.0",
+                "id": str(uuid4())[:8],
+                "method": "tools/call",
+                "params": {
+                    "name": "execute_tool",
+                    "arguments": {
+                        "tool_name": tool_name,
+                        "parameters": arguments,
+                    },
                 },
-            },
-        }
-
-        response = await client.post(
-            f"{self.base_url}/mcp",
-            json=payload,
-            headers={"Content-Type": "application/json"},
+            }
         )
-        response.raise_for_status()
 
         result = response.json()
 
@@ -99,20 +202,29 @@ class SessionIntelligenceClient:
 
         # Extract text content from MCP response
         content = result.get("result", {}).get("content", [])
-        if content and len(content) > 0:
-            text = content[0].get("text", "{}")
-            try:
-                parsed = json.loads(text)
-                logger.debug(f"Parsed response: {parsed}")
-                return cast(dict[str, Any], parsed)
-            except json.JSONDecodeError as e:
-                logger.error(
-                    f"Failed to parse JSON response: {e}, text: {text[:200]}"
-                )
-                return {"raw": text, "error": "Failed to parse response"}
+        if not content:
+            raise ValueError(f"Empty response content for {tool_name}")
 
-        logger.warning("Empty response content from session-intelligence")
-        return {}
+        text = content[0].get("text", "")
+        try:
+            envelope = json.loads(text)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Failed to parse {tool_name} response: {e}, text: {text[:200]}"
+            ) from e
+
+        # execute_tool wraps results as {"tool", "status", "result"}. Unknown
+        # tools come back as {"error", "available_tools"} with no status.
+        if not isinstance(envelope, dict) or envelope.get("status") != "success":
+            error = (
+                envelope.get("error", envelope)
+                if isinstance(envelope, dict)
+                else envelope
+            )
+            raise ValueError(f"{tool_name} failed: {error}")
+
+        logger.debug(f"Parsed {tool_name} result: {envelope.get('result')}")
+        return envelope.get("result")
 
     async def health_check(self) -> bool:
         """Check if session-intelligence is healthy."""
@@ -131,7 +243,7 @@ class SessionIntelligenceClient:
             session_id: The session ID to look up.
 
         Returns:
-            Session data if found, None otherwise.
+            The overview dashboard if found, None otherwise.
         """
         try:
             result = await self._call_tool(
@@ -142,9 +254,9 @@ class SessionIntelligenceClient:
                     "export_format": "json",
                 },
             )
-            if result.get("error"):
-                return None
-            return result
+            if isinstance(result, dict):
+                return cast(dict[str, Any], result)
+            return None
         except (httpx.HTTPError, ValueError) as e:
             logger.error(f"Error fetching session {session_id}: {e}")
             return None
@@ -159,7 +271,7 @@ class SessionIntelligenceClient:
             session_id: The session ID.
 
         Returns:
-            List of learnings.
+            List of search hits.
         """
         try:
             result = await self._call_tool(
@@ -170,11 +282,8 @@ class SessionIntelligenceClient:
                     "limit": 50,
                 },
             )
-
-            # Extract learnings from search results
-            results = result.get("results", result.get("entries", []))
-            if isinstance(results, list):
-                return cast(list[dict[str, Any]], results)
+            if isinstance(result, dict):
+                return _list_of_dicts(result.get("results"))
             return []
         except (httpx.HTTPError, ValueError) as e:
             logger.error(f"Error fetching learnings for {session_id}: {e}")
@@ -201,9 +310,10 @@ class SessionIntelligenceClient:
                     "export_format": "json",
                 },
             )
-            decisions = result.get("decisions", [])
-            if isinstance(decisions, list):
-                return cast(list[dict[str, Any]], decisions)
+            if isinstance(result, dict):
+                metrics = result.get("metrics")
+                if isinstance(metrics, dict):
+                    return _list_of_dicts(metrics.get("recent_decisions"))
             return []
         except (httpx.HTTPError, ValueError) as e:
             logger.error(f"Error fetching decisions for {session_id}: {e}")
@@ -222,14 +332,12 @@ class SessionIntelligenceClient:
             List of notes.
         """
         try:
+            # session_query_notebooks returns a bare list.
             result = await self._call_tool(
                 "session_query_notebooks",
                 {"limit": 50},
             )
-            notebooks = result.get("notebooks", result.get("results", []))
-            if isinstance(notebooks, list):
-                return cast(list[dict[str, Any]], notebooks)
-            return []
+            return _list_of_dicts(result)
         except (httpx.HTTPError, ValueError) as e:
             logger.error(f"Error fetching notes for {session_id}: {e}")
             return []
@@ -285,10 +393,12 @@ class SessionIntelligenceClient:
                     "limit": 1,
                 },
             )
-            results = result.get("results", result.get("entries", []))
-            if isinstance(results, list) and results:
-                return cast(dict[str, Any], results[0])
-            return None
+            results = (
+                _list_of_dicts(result.get("results"))
+                if isinstance(result, dict)
+                else []
+            )
+            return results[0] if results else None
         except (httpx.HTTPError, ValueError) as e:
             logger.error(f"Error fetching learning {learning_id}: {e}")
             return None
