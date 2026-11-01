@@ -51,6 +51,7 @@ class DatetimeJSONEncoder(json.JSONEncoder):
             return o.dict()
         return super().default(o)
 
+
 # MCP Protocol version
 MCP_PROTOCOL_VERSION = "2024-11-05"
 
@@ -501,8 +502,7 @@ def create_app(
 
         # Build curator notes
         curator_notes = (
-            f"{request.decision}: {request.reason} "
-            f"(confidence: {request.confidence:.2f})"
+            f"{request.decision}: {request.reason} (confidence: {request.confidence:.2f})"
         )
         if request.similar_entries:
             curator_notes += f"\nSimilar entries: {', '.join(request.similar_entries)}"

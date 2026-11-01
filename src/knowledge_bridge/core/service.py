@@ -66,9 +66,7 @@ class KnowledgeBridgeService:
             Tuple of (is_valid, error_message).
         """
         # Check for problem/pattern field
-        has_problem = any(
-            key in content for key in ["problem", "problem_pattern", "pattern"]
-        )
+        has_problem = any(key in content for key in ["problem", "problem_pattern", "pattern"])
         if not has_problem:
             return False, "Missing required field: problem, problem_pattern, or pattern"
 
@@ -77,11 +75,7 @@ class KnowledgeBridgeService:
             return False, "Missing required field: solution"
 
         # Validate non-empty strings
-        problem = (
-            content.get("problem")
-            or content.get("problem_pattern")
-            or content.get("pattern")
-        )
+        problem = content.get("problem") or content.get("problem_pattern") or content.get("pattern")
         if not isinstance(problem, str) or not problem.strip():
             return False, "Problem field must be a non-empty string"
 
@@ -168,14 +162,16 @@ class KnowledgeBridgeService:
             uckn_id = result.get("id", entry_id)
 
             # Save to staging as promoted
-            await self.database.save_staged_entry({
-                "id": entry_id,
-                "source": source,
-                "source_id": learning_id,
-                "content": content,
-                "status": "promoted",
-                "promoted_to": uckn_id,
-            })
+            await self.database.save_staged_entry(
+                {
+                    "id": entry_id,
+                    "source": source,
+                    "source_id": learning_id,
+                    "content": content,
+                    "status": "promoted",
+                    "promoted_to": uckn_id,
+                }
+            )
 
             # Emit event
             await self.webhook_emitter.emit(
@@ -196,13 +192,15 @@ class KnowledgeBridgeService:
             )
         else:
             # Stage for review
-            await self.database.save_staged_entry({
-                "id": entry_id,
-                "source": source,
-                "source_id": learning_id,
-                "content": content,
-                "status": "pending",
-            })
+            await self.database.save_staged_entry(
+                {
+                    "id": entry_id,
+                    "source": source,
+                    "source_id": learning_id,
+                    "content": content,
+                    "status": "pending",
+                }
+            )
 
             # Emit event
             await self.webhook_emitter.emit(
@@ -262,22 +260,26 @@ class KnowledgeBridgeService:
             category = learning.get("category", "")
 
             if confidence < min_confidence:
-                results.append(PromotionResult(
-                    success=False,
-                    entry_id="",
-                    status="rejected",
-                    reason=f"Confidence {confidence} below threshold {min_confidence}",
-                ))
+                results.append(
+                    PromotionResult(
+                        success=False,
+                        entry_id="",
+                        status="rejected",
+                        reason=f"Confidence {confidence} below threshold {min_confidence}",
+                    )
+                )
                 rejected += 1
                 continue
 
             if categories and category not in categories:
-                results.append(PromotionResult(
-                    success=False,
-                    entry_id="",
-                    status="rejected",
-                    reason=f"Category {category} not in filter {categories}",
-                ))
+                results.append(
+                    PromotionResult(
+                        success=False,
+                        entry_id="",
+                        status="rejected",
+                        reason=f"Category {category} not in filter {categories}",
+                    )
+                )
                 rejected += 1
                 continue
 
@@ -479,13 +481,15 @@ class KnowledgeBridgeService:
         results = await self.knowledge_store_client.search(query, context, limit)
 
         # Log the search
-        await self.database.save_search({
-            "session_id": session_id,
-            "query": query,
-            "context": context,
-            "results_count": len(results),
-            "top_result_id": results[0]["knowledge_id"] if results else None,
-        })
+        await self.database.save_search(
+            {
+                "session_id": session_id,
+                "query": query,
+                "context": context,
+                "results_count": len(results),
+                "top_result_id": results[0]["knowledge_id"] if results else None,
+            }
+        )
 
         # Emit event
         await self.webhook_emitter.emit(
@@ -578,13 +582,15 @@ class KnowledgeBridgeService:
         feedback_id = f"fb-{uuid4().hex[:12]}"
 
         # Save feedback
-        await self.database.save_feedback({
-            "id": feedback_id,
-            "session_id": session_id,
-            "knowledge_id": knowledge_id,
-            "outcome": outcome,
-            "notes": notes,
-        })
+        await self.database.save_feedback(
+            {
+                "id": feedback_id,
+                "session_id": session_id,
+                "knowledge_id": knowledge_id,
+                "outcome": outcome,
+                "notes": notes,
+            }
+        )
 
         # Emit event
         await self.webhook_emitter.emit(
@@ -625,12 +631,14 @@ class KnowledgeBridgeService:
         """
         webhook_id = f"wh-{uuid4().hex[:12]}"
 
-        await self.database.save_webhook({
-            "id": webhook_id,
-            "subscriber": subscriber,
-            "events": events,
-            "endpoint": endpoint,
-        })
+        await self.database.save_webhook(
+            {
+                "id": webhook_id,
+                "subscriber": subscriber,
+                "events": events,
+                "endpoint": endpoint,
+            }
+        )
 
         return WebhookRegistration(
             id=webhook_id,

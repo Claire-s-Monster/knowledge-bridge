@@ -111,6 +111,7 @@ class KnowledgeStoreClient:
                 logger.error(f"Failed to parse JSON response: {e}, text: {text}")
                 # Fallback to ast.literal_eval for Python repr strings
                 import ast
+
                 try:
                     return cast(dict[str, Any], ast.literal_eval(text))
                 except (ValueError, SyntaxError):
@@ -169,15 +170,17 @@ class KnowledgeStoreClient:
             entries = result.get("entries", [])
             matches = []
             for entry in entries:
-                matches.append({
-                    "knowledge_id": entry.get("id", ""),
-                    "problem_pattern": entry.get("problem_pattern", ""),
-                    "solution": entry.get("solution", ""),
-                    "relevance_score": entry.get("distance", 0.5),
-                    "success_rate": entry.get("metadata", {}).get("quality_score", 0.0),
-                    "times_applied": entry.get("metadata", {}).get("times_applied", 0),
-                    "tags": entry.get("metadata", {}).get("tags", []),
-                })
+                matches.append(
+                    {
+                        "knowledge_id": entry.get("id", ""),
+                        "problem_pattern": entry.get("problem_pattern", ""),
+                        "solution": entry.get("solution", ""),
+                        "relevance_score": entry.get("distance", 0.5),
+                        "success_rate": entry.get("metadata", {}).get("quality_score", 0.0),
+                        "times_applied": entry.get("metadata", {}).get("times_applied", 0),
+                        "tags": entry.get("metadata", {}).get("tags", []),
+                    }
+                )
 
             return matches
 
@@ -201,10 +204,7 @@ class KnowledgeStoreClient:
             # Map entry fields to add_entry parameters with field name normalization
             # Handle various field names: problem_pattern, problem, pattern
             problem = (
-                entry.get("problem_pattern")
-                or entry.get("problem")
-                or entry.get("pattern")
-                or ""
+                entry.get("problem_pattern") or entry.get("problem") or entry.get("pattern") or ""
             )
 
             arguments: dict[str, Any] = {

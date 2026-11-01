@@ -205,32 +205,38 @@ def mock_session_client() -> SessionIntelligenceClient:
     client = SessionIntelligenceClient()
     # Replace methods with mocks
     client.health_check = AsyncMock(return_value=True)
-    client.get_learning = AsyncMock(return_value={
-        "id": "learn-test",
-        "problem": "Test problem pattern",
-        "solution": "Test solution",
-        "confidence": 0.9,
-    })
-    client.get_session_learnings = AsyncMock(return_value=[
-        {
-            "id": "learn-1",
-            "problem": "Learning 1 problem",
-            "solution": "Learning 1 solution",
+    client.get_learning = AsyncMock(
+        return_value={
+            "id": "learn-test",
+            "problem": "Test problem pattern",
+            "solution": "Test solution",
             "confidence": 0.9,
-        },
-        {
-            "id": "learn-2",
-            "problem": "Learning 2 problem",
-            "solution": "Learning 2 solution",
-            "confidence": 0.6,
-        },
-    ])
-    client.get_session_data = AsyncMock(return_value={
-        "session_id": "test-session",
-        "learnings": [],
-        "decisions": [],
-        "notes": [],
-    })
+        }
+    )
+    client.get_session_learnings = AsyncMock(
+        return_value=[
+            {
+                "id": "learn-1",
+                "problem": "Learning 1 problem",
+                "solution": "Learning 1 solution",
+                "confidence": 0.9,
+            },
+            {
+                "id": "learn-2",
+                "problem": "Learning 2 problem",
+                "solution": "Learning 2 solution",
+                "confidence": 0.6,
+            },
+        ]
+    )
+    client.get_session_data = AsyncMock(
+        return_value={
+            "session_id": "test-session",
+            "learnings": [],
+            "decisions": [],
+            "notes": [],
+        }
+    )
     client.close = AsyncMock()
     return client
 
