@@ -57,7 +57,7 @@ class SessionIntelligenceClient:
     """Async HTTP client for session-intelligence server.
 
     Communicates with the session-intelligence MCP server using JSON-RPC
-    to call tools like session_get_dashboard, session_search, etc.
+    to call tools like session_get_dashboard, session_get_learning, etc.
     """
 
     def __init__(
@@ -402,27 +402,25 @@ class SessionIntelligenceClient:
         return result
 
     async def get_learning(self, learning_id: str) -> dict[str, Any] | None:
-        """Get a specific learning by ID via search.
+        """Get a specific learning by ID via session_get_learning.
 
         Args:
             learning_id: The learning ID.
 
         Returns:
-            Learning data if found, None otherwise.
+            The learning, with problem/solution fields added. None if it is
+            not found, retired, or superseded.
         """
         try:
-            # TODO(session-intelligence#207): no tool fetches a learning by ID.
-            # This full-text search returns a search hit, not the learning record.
-            result = await self._call_tool(
-                "session_search",
-                {
-                    "query": learning_id,
-                    "search_type": "fulltext",
-                    "limit": 1,
-                },
-            )
-            results = _list_of_dicts(result.get("results")) if isinstance(result, dict) else []
-            return results[0] if results else None
+            result = await self._call_tool("session_get_learning", {"learning_id": learning_id})
         except (httpx.HTTPError, ValueError) as e:
             logger.error(f"Error fetching learning {learning_id}: {e}")
             return None
+
+        record = result.get("learning") if isinstance(result, dict) else None
+        if not isinstance(record, dict):
+            return None
+        if record.get("retired_at") or record.get("superseded_by"):
+            logger.warning(f"Learning {learning_id} is retired or superseded; not returning it")
+            return None
+        return _as_learning(cast(dict[str, Any], record))
