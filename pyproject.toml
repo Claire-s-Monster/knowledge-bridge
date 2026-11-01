@@ -64,6 +64,7 @@ lint = "ruff check src/ --fix"
 format = "black src/ ."
 type-check = "mypy src/"
 dead-code = "vulture src/ --min-confidence 80"
+check-systemd = "bash scripts/check_systemd_units.sh"
 quality = { depends-on = ["lint", "type-check", "dead-code"] }
 check-all = { depends-on = ["test", "quality"] }
 # Build tasks
