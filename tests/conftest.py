@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any, AsyncGenerator
-from unittest.mock import AsyncMock, MagicMock
+from collections.abc import AsyncGenerator
+from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
@@ -12,7 +13,6 @@ from knowledge_bridge.clients.session_intel import SessionIntelligenceClient
 from knowledge_bridge.clients.uckn import MockUCKNClient
 from knowledge_bridge.core.models import (
     KnowledgeMatch,
-    PromotionResult,
     StagedEntry,
     WebhookRegistration,
 )
@@ -20,7 +20,6 @@ from knowledge_bridge.core.service import KnowledgeBridgeService
 from knowledge_bridge.lean.interface import LeanMCPInterface
 from knowledge_bridge.persistence.base import BaseDatabaseBackend
 from knowledge_bridge.webhooks.emitter import WebhookEmitter
-
 
 # ===== Mock Database Backend =====
 

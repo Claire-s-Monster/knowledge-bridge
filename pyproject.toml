@@ -15,7 +15,6 @@ dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.0.0",
-    "black>=23.0.0",
     "ruff>=0.1.0",
     "mypy>=1.5.0",
     "pre-commit>=3.0.0",
@@ -60,12 +59,15 @@ http-server-dev = { cmd = "python src/http_lean_server.py --log-level DEBUG", en
 db-init = { cmd = "python -c 'from pathlib import Path; Path.home().joinpath(\".claude/knowledge-bridge\").mkdir(parents=True, exist_ok=True); print(\"Data directory ready\")'", env = { PYTHONPATH = "src" } }
 # Quality tasks
 test = "pytest tests/ -v --ignore=.pixi"
-lint = "ruff check src/ --fix"
-format = "black src/ ."
-type-check = "mypy src/"
-dead-code = "vulture src/ --min-confidence 80"
+# ruff/mypy/vulture live in the dev feature, so pin these tasks to the dev env
+lint = { cmd = "ruff check src/ tests/", default-environment = "dev" }
+lint-fix = { cmd = "ruff check --fix src/ tests/", default-environment = "dev" }
+format = { cmd = "ruff format src/ tests/", default-environment = "dev" }
+format-check = { cmd = "ruff format --check src/ tests/", default-environment = "dev" }
+type-check = { cmd = "mypy src/", default-environment = "dev" }
+dead-code = { cmd = "vulture src/ --min-confidence 80", default-environment = "dev" }
 check-systemd = "bash scripts/check_systemd_units.sh"
-quality = { depends-on = ["lint", "type-check", "dead-code"] }
+quality = { depends-on = ["lint", "format-check", "type-check", "dead-code"] }
 check-all = { depends-on = ["test", "quality"] }
 # Build tasks
 build = "python -m build"
@@ -99,10 +101,6 @@ select = [
     "C4", # flake8-comprehensions
     "UP", # pyupgrade
 ]
-
-[tool.black]
-target-version = ["py311"]
-line-length = 100
 
 [tool.mypy]
 python_version = "3.11"
