@@ -47,7 +47,7 @@ ACCEPTED_PARAMS: dict[str, set[str]] = {
         "search",
         "include_key_changes",
     },
-    "session_search": {"query", "search_type", "limit"},
+    "session_get_learning": {"learning_id"},
 }
 
 OVERVIEW_RESULT: dict[str, Any] = {
@@ -155,21 +155,36 @@ NOTEBOOK_OTHER_SESSION: dict[str, Any] = {
     "project_name": "knowledge-bridge",
 }
 
-SEARCH_RESULT: dict[str, Any] = {
-    "query": "black",
-    "total_results": 1,
-    "results": [
-        {
-            "session_id": "learn_dca904e9f957",
-            "title": "error_fix",
-            "snippet": "<b>BLACK</b> IS BROKEN ON shell-runner",
-            "relevance": 0.09285612404346466,
-            "project_name": "shell-runner",
-            "project_path": "_unknown_",
-            "started_at": "2026-08-27T16:06:15.216935+00:00",
-            "tags": [],
-        }
-    ],
+# Recorded from session_get_learning on 2026-11-01, long text trimmed.
+FULL_LEARNING: dict[str, Any] = {
+    "id": "learn_61d0d24fa030",
+    "category": "pattern",
+    "trigger_context": "Reviewing systemd restart-limit claims or issue #13 replies",
+    "learning_content": "systemd start limit: ...",
+    "summary": None,
+    "project_name": "knowledge-bridge",
+    "project_path": "/home/memento/ClaudeCode/Servers/knowledge-bridge/development",
+    "source_session_id": "dc08b57c-190a-4d56-867f-9dd35fe71e5b",
+    "success_count": 1,
+    "failure_count": 0,
+    "created_at": "2026-11-01T17:21:31.075510+00:00",
+    "last_used": "2026-11-01T17:21:31.075510+00:00",
+    "promoted_to_universal": False,
+    "supersedes": None,
+    "superseded_by": [],
+    "retired_at": None,
+    "retired_reason": None,
+}
+RETIRED_LEARNING: dict[str, Any] = {
+    **FULL_LEARNING,
+    "id": "learn_retired",
+    "retired_at": "2026-11-01T18:00:00+00:00",
+    "retired_reason": "obsolete",
+}
+SUPERSEDED_LEARNING: dict[str, Any] = {
+    **FULL_LEARNING,
+    "id": "learn_superseded",
+    "superseded_by": ["learn_newer"],
 }
 
 
@@ -184,7 +199,9 @@ class FakeSessionIntelligence:
         self.tool_results: dict[str, Any] = {
             "session_recall": RECALL_RESULT,
             "session_query_notebooks": [NOTEBOOK_THIS_SESSION, NOTEBOOK_OTHER_SESSION],
-            "session_search": SEARCH_RESULT,
+        }
+        self.learnings: dict[str, dict[str, Any]] = {
+            r["id"]: r for r in (FULL_LEARNING, RETIRED_LEARNING, SUPERSEDED_LEARNING)
         }
         self.sessions: set[str] = set()
         self.requests: list[httpx.Request] = []
@@ -235,6 +252,25 @@ class FakeSessionIntelligence:
                 "tool": tool,
                 "status": "error",
                 "error": f"Invalid parameters for '{tool}' - unexpected parameter(s): {unexpected}",
+            }
+
+        if tool == "session_get_learning":
+            learning_id = params.get("learning_id")
+            record = self.learnings.get(learning_id)
+            if record is None:
+                return {
+                    "tool": tool,
+                    "status": "error",
+                    "result": {
+                        "status": "error",
+                        "learning_id": learning_id,
+                        "message": f"Learning '{learning_id}' not found",
+                    },
+                }
+            return {
+                "tool": tool,
+                "status": "success",
+                "result": {"status": "success", "learning": record},
             }
 
         if tool == "session_get_dashboard":
@@ -491,12 +527,39 @@ async def test_get_session_notes_keeps_only_this_sessions_notebooks() -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_learning_returns_first_search_hit() -> None:
-    # Current behaviour until session-intelligence#207 adds a fetch-by-ID tool.
+async def test_get_learning_returns_normalised_record() -> None:
     server = FakeSessionIntelligence()
     client = make_client(server)
 
-    assert await client.get_learning("learn_dca904e9f957") == SEARCH_RESULT["results"][0]
+    learning = await client.get_learning("learn_61d0d24fa030")
+
+    assert learning == as_learning(FULL_LEARNING)
+    assert learning is not None
+    assert learning["problem"] == FULL_LEARNING["trigger_context"]
+    assert learning["solution"] == FULL_LEARNING["learning_content"]
+    assert server.tool_calls()[-1] == (
+        "session_get_learning",
+        {"learning_id": "learn_61d0d24fa030"},
+    )
+    await client.close()
+
+
+@pytest.mark.asyncio
+async def test_get_learning_not_found_returns_none() -> None:
+    server = FakeSessionIntelligence()
+    client = make_client(server)
+
+    assert await client.get_learning("learn_doesnotexist") is None
+    await client.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("learning_id", ["learn_retired", "learn_superseded"])
+async def test_get_learning_retired_or_superseded_returns_none(learning_id: str) -> None:
+    server = FakeSessionIntelligence()
+    client = make_client(server)
+
+    assert await client.get_learning(learning_id) is None
     await client.close()
 
 
@@ -508,7 +571,7 @@ async def test_error_envelopes_yield_empty_results() -> None:
 
     assert await client.get_session_learnings(SESSION_ID) == []
     assert await client.get_session_notes(SESSION_ID) == []
-    assert await client.get_learning("learn_dca904e9f957") is None
+    assert await client.get_learning("learn_doesnotexist") is None
     await client.close()
 
 
