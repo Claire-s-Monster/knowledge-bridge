@@ -396,9 +396,7 @@ class LeanMCPInterface:
             service: Knowledge bridge domain service.
         """
         self.service = service
-        self._tool_handlers: dict[
-            str, Callable[..., Coroutine[Any, Any, Any]]
-        ] = {
+        self._tool_handlers: dict[str, Callable[..., Coroutine[Any, Any, Any]]] = {
             "promote_learning": self._promote_learning,
             "batch_promote": self._batch_promote,
             "get_staging_queue": self._get_staging_queue,
@@ -432,11 +430,13 @@ class LeanMCPInterface:
                 if pattern.lower() not in spec.description.lower():
                     continue
 
-            tools.append({
-                "name": name,
-                "description": spec.description,
-                "category": spec.category,
-            })
+            tools.append(
+                {
+                    "name": name,
+                    "description": spec.description,
+                    "category": spec.category,
+                }
+            )
 
             categories[spec.category] = categories.get(spec.category, 0) + 1
 

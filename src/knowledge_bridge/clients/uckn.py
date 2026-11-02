@@ -94,12 +94,7 @@ class MockUCKNClient:
         """
         # Add field normalization to match KnowledgeStoreClient behavior
         # Handle various field names: problem_pattern, problem, pattern
-        problem = (
-            entry.get("problem_pattern")
-            or entry.get("problem")
-            or entry.get("pattern")
-            or ""
-        )
+        problem = entry.get("problem_pattern") or entry.get("problem") or entry.get("pattern") or ""
 
         # Normalize entry before storing
         normalized_entry = {

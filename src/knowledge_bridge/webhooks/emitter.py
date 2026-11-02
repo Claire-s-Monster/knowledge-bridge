@@ -82,11 +82,13 @@ class WebhookEmitter:
         }
 
         # Save event to log
-        event_id = await self.database.save_event({
-            "event_type": event_type,
-            "payload": payload,
-            "delivered_to": [],
-        })
+        event_id = await self.database.save_event(
+            {
+                "event_type": event_type,
+                "payload": payload,
+                "delivered_to": [],
+            }
+        )
 
         # Get subscribed webhooks
         webhooks = await self.database.query_webhooks(
@@ -113,10 +115,12 @@ class WebhookEmitter:
             if success:
                 delivered_to.append(webhook["id"])
             else:
-                failed.append({
-                    "webhook_id": webhook["id"],
-                    "endpoint": webhook["endpoint"],
-                })
+                failed.append(
+                    {
+                        "webhook_id": webhook["id"],
+                        "endpoint": webhook["endpoint"],
+                    }
+                )
 
         logger.info(
             f"Event {event_type}: delivered to {len(delivered_to)}/{len(webhooks)} webhooks"
@@ -176,9 +180,7 @@ class WebhookEmitter:
                     )
 
             except httpx.HTTPError as e:
-                logger.warning(
-                    f"Webhook {webhook_id} delivery failed (attempt {attempt + 1}): {e}"
-                )
+                logger.warning(f"Webhook {webhook_id} delivery failed (attempt {attempt + 1}): {e}")
 
             # Wait before retry (if not last attempt)
             if attempt < self.MAX_RETRIES - 1:
@@ -188,9 +190,7 @@ class WebhookEmitter:
         current_failures = webhook.get("failure_count", 0) + 1
         if current_failures >= self.MAX_FAILURE_COUNT:
             # Deactivate webhook
-            logger.error(
-                f"Webhook {webhook_id} deactivated after {current_failures} failures"
-            )
+            logger.error(f"Webhook {webhook_id} deactivated after {current_failures} failures")
             await self.database.update_webhook_status(
                 webhook_id,
                 active=False,

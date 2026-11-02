@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from knowledge_bridge.core.service import KnowledgeBridgeService
-from knowledge_bridge.lean.interface import LeanMCPInterface, TOOL_SPECS
+from knowledge_bridge.lean.interface import TOOL_SPECS, LeanMCPInterface
 
 
 class TestDiscoverTools:
@@ -193,8 +193,9 @@ class TestToolSpecsIntegrity:
 
     def test_all_tools_have_handlers(self) -> None:
         """Test that all specs have corresponding handlers."""
-        from knowledge_bridge.lean.interface import LeanMCPInterface
         from unittest.mock import MagicMock
+
+        from knowledge_bridge.lean.interface import LeanMCPInterface
 
         # Create interface with mock service
         mock_service = MagicMock()

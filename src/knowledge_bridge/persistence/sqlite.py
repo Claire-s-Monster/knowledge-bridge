@@ -121,8 +121,7 @@ class SQLiteBackend(BaseDatabaseBackend):
 
         if aiosqlite is None:
             raise ImportError(
-                "aiosqlite is required for SQLite backend. "
-                "Install with: pip install aiosqlite"
+                "aiosqlite is required for SQLite backend. Install with: pip install aiosqlite"
             )
 
         if db_path is None:
@@ -376,9 +375,7 @@ class SQLiteBackend(BaseDatabaseBackend):
         self._ensure_connected()
         assert self._conn is not None
 
-        cursor = await self._conn.execute(
-            "DELETE FROM webhooks WHERE id = ?", (webhook_id,)
-        )
+        cursor = await self._conn.execute("DELETE FROM webhooks WHERE id = ?", (webhook_id,))
         await self._conn.commit()
         return bool(cursor.rowcount > 0)
 
@@ -616,9 +613,7 @@ class SQLiteBackend(BaseDatabaseBackend):
             "SELECT status, COUNT(*) as count FROM staging_queue GROUP BY status"
         ) as cursor:
             rows = await cursor.fetchall()
-            stats["staging_by_status"] = {
-                str(row["status"]): row["count"] for row in rows
-            }
+            stats["staging_by_status"] = {str(row["status"]): row["count"] for row in rows}
 
         # Get database file size
         if self.db_path.exists():
