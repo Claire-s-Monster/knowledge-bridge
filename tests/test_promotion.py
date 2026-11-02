@@ -156,11 +156,11 @@ class TestBatchPromote:
         mock_session_client.get_session_learnings.return_value = [
             {
                 "problem": "Formatting or lint checks in knowledge-bridge",
-                "solution": "knowledge-bridge: black is the formatter; ruff is lint-only.",
+                "solution": "knowledge-bridge: ruff handles both linting and formatting.",
                 "id": "learn_88866055f6d6",
                 "category": "pattern",
                 "trigger_context": "Formatting or lint checks in knowledge-bridge",
-                "learning_content": "knowledge-bridge: black is the formatter; ruff is lint-only.",
+                "learning_content": "knowledge-bridge: ruff handles both linting and formatting.",
                 "project_name": "knowledge-bridge",
                 "source_session_id": "949b45a9-9b8a-44ee-b7bb-d203d5533da9",
                 "success_count": 1,
