@@ -1,0 +1,7 @@
+# Commits listed here are skipped by `git blame` when blame.ignoreRevsFile
+# points at this file (GitHub's blame view reads it automatically).
+# Enable locally with: git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# chore: switch formatter from black to ruff format (#12) (#17)
+# Squash of the formatter switch and the repo-wide ruff format reformat.
+f90f751a9f6076efcbce8495a3cacadc78e559da

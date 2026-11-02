@@ -105,7 +105,7 @@ LEARNING_THIS_SESSION: dict[str, Any] = {
     "id": "learn_88866055f6d6",
     "category": "pattern",
     "trigger_context": "Formatting or lint checks in knowledge-bridge",
-    "learning_content": "knowledge-bridge: black is the formatter; ruff is lint-only.",
+    "learning_content": "knowledge-bridge: ruff handles both linting and formatting.",
     "project_name": "knowledge-bridge",
     "source_session_id": SESSION_ID,
     "success_count": 1,
